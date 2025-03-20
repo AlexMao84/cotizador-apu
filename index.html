@@ -1,640 +1,129 @@
 <!DOCTYPE html>
-<html>
+<html lang="es">
 <head>
-    <title>Calculadora y Cotización</title>
-    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
-    <script src="https://alcdn.msauth.net/browser/2.30.0/js/msal-browser.min.js"></script>
-    <style>
-        body {
-            font-family: 'Roboto', sans-serif;
-            margin: 0;
-            padding: 0;
-            background: linear-gradient(135deg, #f5f7fa, #e4e6eb);
-        }
-
-        .container {
-            max-width: 960px;
-            margin: 40px auto;
-            padding: 30px;
-            background-color: #fff;
-            border-radius: 12px;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
-        }
-
-        h1 {
-            text-align: center;
-            color: #2c3e50;
-            margin-bottom: 30px;
-        }
-
-        .tabs {
-            display: flex;
-            border-bottom: 2px solid #2196F3;
-            margin-bottom: 20px;
-        }
-
-        .tab-button {
-            flex: 1;
-            padding: 15px;
-            text-align: center;
-            background-color: #f0f0f0;
-            border: none;
-            cursor: pointer;
-            font-size: 16px;
-            transition: background-color 0.3s ease;
-        }
-
-        .tab-button:hover {
-            background-color: #e0e0e0;
-        }
-
-        .tab-button.active {
-            background-color: #2196F3;
-            color: white;
-        }
-
-        .tab-content {
-            display: none;
-        }
-
-        .tab-content.active {
-            display: block;
-        }
-
-        h2 {
-            color: #2c3e50;
-            border-bottom: 2px solid #2196F3;
-            padding-bottom: 5px;
-            margin-top: 20px;
-            text-align: right;
-        }
-
-        .toolbar {
-            display: flex;
-            gap: 10px;
-            margin-bottom: 20px;
-            flex-wrap: wrap;
-            justify-content: flex-end;
-        }
-
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            border-radius: 8px;
-            overflow: hidden;
-            margin-bottom: 20px;
-        }
-
-        th, td {
-            border: 1px solid #e0e0e0;
-            padding: 10px;
-            text-align: right;
-            vertical-align: middle;
-        }
-
-        th {
-            background-color: #2c3e50;
-            color: #fff;
-        }
-
-        tr:hover {
-            background-color: #f9f9f9;
-        }
-
-        th:nth-child(1), td:nth-child(1) { width: 40%; text-align: left; }
-        th:nth-child(2), td:nth-child(2) { width: 10%; }
-        th:nth-child(3), td:nth-child(3) { width: 10%; }
-        th:nth-child(4), td:nth-child(4) { width: 15%; }
-        th:nth-child(5), td:nth-child(5) { width: 25%; }
-        th:nth-child(6), td:nth-child(6) { width: 5%; }
-
-        .editable {
-            border: none;
-            width: 100%;
-            padding: 5px;
-            font-size: 16px;
-            background-color: transparent;
-            text-align: right;
-            border-bottom: 1px solid #e0e0e0;
-            box-sizing: border-box;
-        }
-
-        .editable:focus {
-            outline: none;
-            border-bottom: 1px solid #2196F3;
-        }
-
-        .editable-description {
-            text-align: left;
-        }
-
-        tfoot tr {
-            background-color: #e8f5e9;
-        }
-
-        tfoot td:nth-child(1) {
-            font-size: 18px;
-            font-weight: bold;
-            color: #4CAF50;
-            padding: 15px;
-            text-align: right;
-        }
-
-        tfoot td:nth-child(3) {
-            font-size: 20px;
-            font-weight: bold;
-            color: #4CAF50;
-            padding: 15px;
-            text-align: right;
-        }
-
-        button {
-            background-color: #2196F3;
-            color: white;
-            padding: 10px 20px;
-            border: none;
-            border-radius: 6px;
-            cursor: pointer;
-            transition: background-color 0.3s ease;
-        }
-
-        button:hover {
-            background-color: #0b7dda;
-        }
-
-        .delete-btn {
-            background-color: #e74c3c;
-            padding: 8px;
-            font-size: 14px;
-            width: 100%;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-        }
-
-        .delete-btn:hover {
-            background-color: #c0392b;
-        }
-
-        label {
-            display: block;
-            margin-bottom: 5px;
-            font-weight: bold;
-            color: #4A4A4A;
-            text-align: right;
-        }
-
-        input[type="text"],
-        input[type="number"],
-        select,
-        textarea {
-            width: 100%;
-            padding: 8px;
-            margin-bottom: 10px;
-            border: 1px solid #e0e0e0;
-            border-radius: 6px;
-            box-sizing: border-box;
-            font-size: 14px;
-            text-align: right;
-        }
-
-        input[type="text"],
-        textarea {
-            text-align: left;
-        }
-
-        input:focus, select:focus, textarea:focus {
-            border-color: #2196F3;
-            outline: none;
-        }
-
-        .cotizacion-field {
-            display: flex;
-            align-items: center;
-            gap: 15px;
-            margin-bottom: 15px;
-            justify-content: flex-end;
-        }
-
-        .cotizacion-field label {
-            flex: 1;
-            margin-bottom: 0;
-            text-align: right;
-        }
-
-        .cotizacion-field input,
-        .cotizacion-field select,
-        .cotizacion-field textarea,
-        .cotizacion-field p {
-            flex: 2;
-            text-align: right;
-        }
-
-        .cotizacion-field select#moneda,
-        .cotizacion-field select#unidadMedida,
-        .cotizacion-field input#cantidad,
-        .cotizacion-field input#porcentajeAnticipo {
-            flex: 1;
-            width: 60px;
-        }
-
-        .cotizacion-field input#conAIU {
-            flex: 1;
-            width: 20px;
-        }
-
-        .cotizacion-field textarea#descripcion {
-            height: 50px;
-            resize: vertical;
-            text-align: left;
-        }
-
-        .cotizacion-field input#tasaCambio {
-            flex: 2;
-            width: 100%;
-            font-size: 14px;
-            color: #666;
-            border: 1px dashed #2196F3;
-            background-color: #f9f9f9;
-        }
-
-        .margen-field {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            margin-bottom: 10px;
-            justify-content: flex-end;
-        }
-
-        .margen-field label {
-            flex: 2;
-            margin-bottom: 0;
-            text-align: right;
-        }
-
-        .margen-field input {
-            flex: 1;
-            width: auto;
-            padding: 8px;
-            margin-bottom: 0;
-        }
-
-        .aiu-fields {
-            margin-top: 20px;
-            padding: 20px;
-            background-color: #f9f9f9;
-            border-radius: 8px;
-        }
-
-        .no-aiu .aiu-fields {
-            display: none;
-        }
-
-        h3 {
-            margin-top: 0;
-            color: #2c3e50;
-            font-size: 20px;
-            text-align: right;
-        }
-
-        p {
-            font-size: 18px;
-            color: #2196F3;
-            font-weight: bold;
-            margin: 5px 0;
-            text-align: right;
-        }
-
-        .total {
-            color: #4CAF50;
-            font-size: 20px;
-        }
-
-        #resultado, #consecutivo {
-            color: #4CAF50;
-            font-size: 20px;
-        }
-
-        .resumen-porcentajes {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 20px;
-            margin-top: 20px;
-            justify-content: flex-end;
-        }
-
-        .resumen-card {
-            flex: 1 1 200px;
-            padding: 15px;
-            background-color: #f9f9f9;
-            border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
-            text-align: right;
-        }
-
-        .resumen-card span {
-            font-weight: bold;
-            color: #2196F3;
-        }
-
-        .error {
-            color: #e74c3c;
-            font-size: 14px;
-            margin-top: -10px;
-            margin-bottom: 10px;
-            display: none;
-            text-align: right;
-        }
-
-        .hidden {
-            display: none;
-        }
-
-        @media (max-width: 600px) {
-            table { display: block; overflow-x: auto; }
-            .toolbar { flex-direction: column; align-items: flex-end; }
-            .tabs { flex-direction: column; }
-            .cotizacion-field, .margen-field { flex-direction: column; gap: 5px; align-items: flex-end; }
-            .cotizacion-field label, .cotizacion-field input, .cotizacion-field select,
-            .cotizacion-field textarea, .cotizacion-field p, .margen-field label, .margen-field input {
-                flex: none;
-                width: 100%;
-                text-align: right;
-            }
-            .cotizacion-field textarea#descripcion { text-align: left; }
-            .cotizacion-field input#tasaCambio { text-align: right; width: 100%; }
-            tfoot td:nth-child(1) { text-align: right; }
-        }
-
-        #listaCotizaciones div {
-            padding: 15px;
-            background-color: #f9f9f9;
-            margin-bottom: 10px;
-            border-radius: 8px;
-        }
-
-        #listaCotizaciones h3 {
-            text-align: left;
-            margin: 0 0 10px 0;
-            font-size: 16px;
-        }
-
-        #listaCotizaciones p {
-            text-align: left;
-            font-size: 14px;
-            color: #2c3e50;
-        }
-    </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cotizador APU</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+    <script src="https://alcdn.msauth.net/browser/2.30.0/js/msal-browser.min.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 0; padding: 20px; background-color: #f5f7fa; }
+        .container { max-width: 1200px; margin: 0 auto; }
+        h1 { color: #2c3e50; text-align: center; }
+        .tabs { display: flex; justify-content: center; margin-bottom: 20px; }
+        .tab-button { padding: 10px 20px; margin: 0 5px; background-color: #3498db; color: white; border: none; border-radius: 5px; cursor: pointer; }
+        .tab-button:hover { background-color: #2980b9; }
+        .tab-button.active { background-color: #2c3e50; }
+        .tab-content { display: none; background-color: white; padding: 20px; border-radius: 5px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        .tab-content.active { display: block; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { padding: 10px; text-align: left; border-bottom: 1px solid #ddd; }
+        th { background-color: #2c3e50; color: white; }
+        input, select, textarea { width: 100%; padding: 8px; margin: 5px 0; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; }
+        button { padding: 10px 20px; background-color: #27ae60; color: white; border: none; border-radius: 5px; cursor: pointer; }
+        button:hover { background-color: #219653; }
+        #listaCotizaciones div { border: 1px solid #ddd; padding: 10px; margin-bottom: 10px; border-radius: 5px; }
+        .aiu-fields { display: none; }
+        .aiu-fields.active { display: block; }
+    </style>
 </head>
-<body class="con-aiu">
+<body>
     <div class="container">
-        <h1>Calculadora y Cotización</h1>
-
+        <h1>Cotizador APU</h1>
         <div class="tabs">
-            <button class="tab-button active" onclick="openTab('calculadora')">Calculadora APU</button>
-            <button class="tab-button" onclick="openTab('cotizacion')">Cotización APU</button>
+            <button class="tab-button active" onclick="openTab('apu')">APU</button>
+            <button class="tab-button" onclick="openTab('cotizacion')">Cotización</button>
             <button class="tab-button" onclick="openTab('consultar')">Consultar Cotizaciones</button>
         </div>
 
-        <div id="calculadora" class="tab-content active">
-            <div class="toolbar">
-                <button onclick="descargarPlantilla()">Descargar Plantilla Excel</button>
-                <input type="file" id="excelFile" accept=".xlsx, .xls">
-                <button onclick="descargarJSON()">Guardar APU como JSON</button>
-                <input type="file" id="jsonFile" accept=".json" style="display:none;" onchange="cargarJSON(this.files)">
-                <button onclick="document.getElementById('jsonFile').click()">Cargar APU desde JSON</button>
-            </div>
-
-            <h2>Preliminares</h2>
-            <table id="tablaPreliminares">
-                <thead><tr><th>Descripción</th><th>Unidad</th><th>Cantidad</th><th>Precio Unitario</th><th>Subtotal</th><th></th></tr></thead>
+        <div id="apu" class="tab-content active">
+            <h2>Análisis de Precios Unitarios</h2>
+            <button onclick="descargarPlantilla()">Descargar Plantilla APU</button>
+            <input type="file" id="apuFile" accept=".xlsx" onchange="leerExcel(event)">
+            <table id="apuTable">
+                <thead>
+                    <tr>
+                        <th>Categoría</th>
+                        <th>Concepto</th>
+                        <th>Unidad</th>
+                        <th>Cantidad</th>
+                        <th>Valor Unitario</th>
+                        <th>Valor Total</th>
+                    </tr>
+                </thead>
                 <tbody></tbody>
-                <tfoot><tr><td colspan="2"><b>Total Preliminares:</b></td><td colspan="3" id="totalPreliminares">$ 0.00</td><td></td></tr></tfoot>
             </table>
-            <button onclick="agregarFila('Preliminares')">Agregar Preliminar</button>
-
-            <h2>Administrativo</h2>
-            <table id="tablaAdministrativo">
-                <thead><tr><th>Descripción</th><th>Unidad</th><th>Cantidad</th><th>Precio Unitario</th><th>Subtotal</th><th></th></tr></thead>
-                <tbody></tbody>
-                <tfoot><tr><td colspan="2"><b>Total Administrativo:</b></td><td colspan="3" id="totalAdministrativo">$ 0.00</td><td></td></tr></tfoot>
-            </table>
-            <button onclick="agregarFila('Administrativo')">Agregar Administrativo</button>
-
-            <h2>Mano de Obra</h2>
-            <table id="tablaManoObra">
-                <thead><tr><th>Descripción</th><th>Unidad</th><th>Cantidad</th><th>Precio Unitario</th><th>Subtotal</th><th></th></tr></thead>
-                <tbody></tbody>
-                <tfoot><tr><td colspan="2"><b>Total Mano de Obra:</b></td><td colspan="3" id="totalManoObra">$ 0.00</td><td></td></tr></tfoot>
-            </table>
-            <button onclick="agregarFila('ManoObra')">Agregar Mano de Obra</button>
-
-            <h2>Materiales</h2>
-            <table id="tablaMateriales">
-                <thead><tr><th>Descripción</th><th>Unidad</th><th>Cantidad</th><th>Precio Unitario</th><th>Subtotal</th><th></th></tr></thead>
-                <tbody></tbody>
-                <tfoot><tr><td colspan="2"><b>Total Materiales:</b></td><td colspan="3" id="totalMateriales">$ 0.00</td><td></td></tr></tfoot>
-            </table>
-            <button onclick="agregarFila('Materiales')">Agregar Material</button>
-
-            <h2>SST</h2>
-            <table id="tablaSST">
-                <thead><tr><th>Descripción</th><th>Unidad</th><th>Cantidad</th><th>Precio Unitario</th><th>Subtotal</th><th></th></tr></thead>
-                <tbody></tbody>
-                <tfoot><tr><td colspan="2"><b>Total SST:</b></td><td colspan="3" id="totalSST">$ 0.00</td><td></td></tr></tfoot>
-            </table>
-            <button onclick="agregarFila('SST')">Agregar SST</button>
-
-            <h2>Logística y Transporte</h2>
-            <table id="tablaLogisticaTransporte">
-                <thead><tr><th>Descripción</th><th>Unidad</th><th>Cantidad</th><th>Precio Unitario</th><th>Subtotal</th><th></th></tr></thead>
-                <tbody></tbody>
-                <tfoot><tr><td colspan="2"><b>Total Logística y Transporte:</b></td><td colspan="3" id="totalLogisticaTransporte">$ 0.00</td><td></td></tr></tfoot>
-            </table>
-            <button onclick="agregarFila('LogisticaTransporte')">Agregar Logística y Transporte</button>
-
-            <h2>Herramientas y Equipos</h2>
-            <table id="tablaHerramientasEquipos">
-                <thead><tr><th>Descripción</th><th>Unidad</th><th>Cantidad</th><th>Precio Unitario</th><th>Subtotal</th><th></th></tr></thead>
-                <tbody></tbody>
-                <tfoot><tr><td colspan="2"><b>Total Herramientas y Equipos:</b></td><td colspan="3" id="totalHerramientasEquipos">$ 0.00</td><td></td></tr></tfoot>
-            </table>
-            <button onclick="agregarFila('HerramientasEquipos')">Agregar Herramientas y Equipos</button>
-
-            <h2>Viáticos</h2>
-            <table id="tablaViaticos">
-                <thead><tr><th>Descripción</th><th>Unidad</th><th>Cantidad</th><th>Precio Unitario</th><th>Subtotal</th><th></th></tr></thead>
-                <tbody></tbody>
-                <tfoot><tr><td colspan="2"><b>Total Viáticos:</b></td><td colspan="3" id="totalViaticos">$ 0.00</td><td></td></tr></tfoot>
-            </table>
-            <button onclick="agregarFila('Viaticos')">Agregar Viáticos</button>
-
-            <div class="margen-field">
-                <label for="margen_contributivo">Margen Contributivo (%):</label>
-                <input type="number" id="margen_contributivo" value="10" min="0">
-            </div>
-
-            <div class="toolbar">
-                <button onclick="calcularAPU()">Calcular Precio Unitario</button>
-                <button onclick="descargarPDFCalculadora()">Descargar PDF</button>
-                <button onclick="usarEnCotizacion()">Usar en Cotización</button>
-            </div>
-
-            <p>Precio Unitario Total: <span id="resultado">$ 0.00</span></p>
-
-            <h2>Resumen de Porcentajes</h2>
-            <div class="resumen-porcentajes">
-                <div class="resumen-card"><p>Materiales: <span id="porcentajeMateriales">0.00%</span></p></div>
-                <div class="resumen-card"><p>Mano de Obra: <span id="porcentajeManoObra">0.00%</span></p></div>
-                <div class="resumen-card"><p>Preliminares: <span id="porcentajePreliminares">0.00%</span></p></div>
-                <div class="resumen-card"><p>Administrativo: <span id="porcentajeAdministrativo">0.00%</span></p></div>
-                <div class="resumen-card"><p>SST: <span id="porcentajeSST">0.00%</span></p></div>
-                <div class="resumen-card"><p>Logística y Transporte: <span id="porcentajeLogisticaTransporte">0.00%</span></p></div>
-                <div class="resumen-card"><p>Herramientas y Equipos: <span id="porcentajeHerramientasEquipos">0.00%</span></p></div>
-                <div class="resumen-card"><p>Viáticos: <span id="porcentajeViaticos">0.00%</span></p></div>
-            </div>
+            <p>Total APU: <span id="totalAPU">$ 0.00</span></p>
+            <label for="margen_contributivo">Margen Contributivo (%):</label>
+            <input type="number" id="margen_contributivo" value="10" min="0" step="0.1">
+            <p>Total APU con Margen: <span id="totalAPUMargen">$ 0.00</span></p>
         </div>
 
         <div id="cotizacion" class="tab-content">
-            <div class="cotizacion-field">
-                <label for="nombreCliente">Nombre del Cliente:</label>
-                <input type="text" id="nombreCliente" value="Cliente Ejemplo">
+            <h2>Cotización</h2>
+            <label for="consecutivo">Consecutivo:</label>
+            <span id="consecutivo">001</span>
+            <label for="nombreCliente">Nombre del Cliente:</label>
+            <input type="text" id="nombreCliente">
+            <label for="proyecto">Proyecto:</label>
+            <input type="text" id="proyecto">
+            <label for="descripcion">Descripción del Servicio:</label>
+            <textarea id="descripcion" rows="4"></textarea>
+            <label for="precioUnitario">Precio Unitario:</label>
+            <input type="number" id="precioUnitario" oninput="calcularCotizacion()">
+            <label for="unidadMedida">Unidad de Medida:</label>
+            <select id="unidadMedida" onchange="calcularCotizacion()">
+                <option value="Und">Unidad</option>
+                <option value="m2">Metros Cuadrados</option>
+                <option value="m3">Metros Cúbicos</option>
+            </select>
+            <label for="cantidad">Cantidad:</label>
+            <input type="number" id="cantidad" oninput="calcularCotizacion()">
+            <label for="moneda">Moneda:</label>
+            <select id="moneda" onchange="actualizarLabelMoneda(); calcularCotizacion()">
+                <option value="COP">COP</option>
+                <option value="USD">USD</option>
+            </select>
+            <label for="tasaCambio">Tasa de Cambio (COP/USD):</label>
+            <input type="number" id="tasaCambio" oninput="calcularCotizacion()">
+            <label id="labelPrecioUnitarioMoneda">Precio Unitario en Moneda:</label>
+            <span id="precioUnitarioMoneda">$ 0.00</span>
+            <label for="conAIU">Incluir AIU:</label>
+            <input type="checkbox" id="conAIU" onchange="toggleAIUFields(); calcularCotizacion()">
+            <div id="aiuFields" class="aiu-fields">
+                <label for="administrativo">Administración (%):</label>
+                <input type="number" id="administrativo" value="10" oninput="calcularCotizacion()">
+                <span id="valorAdministrativo">$ 0.00</span>
+                <label for="imprevistos">Imprevistos (%):</label>
+                <input type="number" id="imprevistos" value="5" oninput="calcularCotizacion()">
+                <span id="valorImprevistos">$ 0.00</span>
+                <label for="utilidad">Utilidad (%):</label>
+                <input type="number" id="utilidad" value="15" oninput="calcularCotizacion()">
+                <span id="valorUtilidad">$ 0.00</span>
+                <p>Valor Total AIU: <span id="valorAIU">$ 0.00</span></p>
             </div>
-
-            <div class="cotizacion-field">
-                <label for="proyecto">Proyecto:</label>
-                <input type="text" id="proyecto" value="Proyecto Ejemplo">
-            </div>
-
-            <div class="cotizacion-field">
-                <label for="descripcion">Descripción del Servicio:</label>
-                <textarea id="descripcion">Descripción del servicio</textarea>
-            </div>
-
-            <div class="cotizacion-field">
-                <label for="precioUnitario">Precio Unitario:</label>
-                <input type="text" id="precioUnitario" value="$ 0.00">
-            </div>
-            <div class="error" id="precioUnitarioError">Ingrese un valor numérico válido</div>
-
-            <div class="cotizacion-field">
-                <label for="moneda">Moneda:</label>
-                <select id="moneda" onchange="actualizarTasaCambio(); actualizarLabelMoneda(); calcularCotizacion(); toggleAIUFields()">
-                    <option value="COP">COP</option>
-                    <option value="USD">USD</option>
-                    <option value="EUR">EUR</option>
-                </select>
-            </div>
-            <div class="cotizacion-field">
-                <label for="tasaCambio">Tasa de Cambio (editable):</label>
-                <input type="text" id="tasaCambio" value="1COP=1COP" oninput="calcularCotizacion()">
-            </div>
-
-            <div class="cotizacion-field">
-                <label id="labelPrecioUnitarioMoneda" for="precioUnitarioMoneda">Precio Unitario en COP:</label>
-                <p id="precioUnitarioMoneda">$ 0.00 COP</p>
-            </div>
-
-            <div class="cotizacion-field">
-                <label for="unidadMedida">Unidad de Medida:</label>
-                <select id="unidadMedida" onchange="calcularCotizacion()">
-                    <option value="M2">M2</option>
-                    <option value="ML">ML</option>
-                    <option value="UND">UND</option>
-                    <option value="HM">HM</option>
-                </select>
-            </div>
-
-            <div class="cotizacion-field">
-                <label for="cantidad">Cantidad:</label>
-                <input type="number" id="cantidad" value="1" min="0" oninput="calcularCotizacion()">
-            </div>
-            <div class="error" id="cantidadError">La cantidad no puede ser negativa</div>
-
-            <div class="cotizacion-field" id="conAIUField">
-                <label for="conAIU">Cotizar con AIU:</label>
-                <input type="checkbox" id="conAIU" checked onchange="toggleAIU()">
-            </div>
-
-            <div id="aiuDesglose" class="aiu-fields">
-                <h3>Desglose de AIU:</h3>
-                <div class="cotizacion-field">
-                    <label for="administrativo">Administración (%):</label>
-                    <input type="number" id="administrativo" value="6" min="0" oninput="calcularCotizacion()">
-                    <p id="valorAdministrativo">$ 0.00</p>
-                </div>
-                <div class="cotizacion-field">
-                    <label for="imprevistos">Imprevistos (%):</label>
-                    <input type="number" id="imprevistos" value="6" min="0" oninput="calcularCotizacion()">
-                    <p id="valorImprevistos">$ 0.00</p>
-                </div>
-                <div class="cotizacion-field">
-                    <label for="utilidad">Utilidad (%):</label>
-                    <input type="number" id="utilidad" value="6" min="0" oninput="calcularCotizacion()">
-                    <p id="valorUtilidad">$ 0.00</p>
-                </div>
-            </div>
-
-            <div class="cotizacion-field" id="valorAIUField">
-                <label>Valor Total AIU:</label>
-                <p id="valorAIU">$ 0.00</p>
-            </div>
-
-            <div class="cotizacion-field" id="ivaField">
-                <label>IVA:</label>
-                <p id="iva">$ 0.00</p>
-            </div>
-
-            <div class="cotizacion-field">
-                <label>Precio Unitario por Cantidad:</label>
-                <p id="precioUnitarioCantidad">$ 0.00</p>
-            </div>
-
-            <div class="cotizacion-field">
-                <label for="formaPago">Forma de Pago:</label>
-                <input type="text" id="formaPago" value="50% anticipo, 50% contra entrega" oninput="calcularCotizacion()">
-            </div>
-
-            <div class="cotizacion-field">
-                <label for="porcentajeAnticipo">Porcentaje de Anticipo (%):</label>
-                <input type="number" id="porcentajeAnticipo" value="50" min="0" max="100" oninput="calcularCotizacion()">
-                <p id="valorAnticipo">$ 0.00</p>
-            </div>
-
-            <div class="cotizacion-field">
-                <label for="tiempoEntrega">Tiempo de Entrega:</label>
-                <input type="text" id="tiempoEntrega" value="15 días hábiles" oninput="calcularCotizacion()">
-            </div>
-
-            <div class="cotizacion-field">
-                <label>Precio Total:</label>
-                <p id="precioTotal" class="total">$ 0.00</p>
-            </div>
-
-            <div class="cotizacion-field">
-                <label>Consecutivo:</label>
-                <p id="consecutivo">SEL25030001</p>
-            </div>
-
+            <p>IVA: <span id="iva">$ 0.00</span></p>
+            <p>Precio Unitario por Cantidad: <span id="precioUnitarioCantidad">$ 0.00</span></p>
+            <label for="formaPago">Forma de Pago:</label>
+            <input type="text" id="formaPago">
+            <label for="porcentajeAnticipo">Porcentaje de Anticipo (%):</label>
+            <input type="number" id="porcentajeAnticipo" value="30" oninput="calcularCotizacion()">
+            <span id="valorAnticipo">$ 0.00</span>
+            <label for="tiempoEntrega">Tiempo de Entrega:</label>
+            <input type="text" id="tiempoEntrega">
+            <p>Precio Total: <span id="precioTotal">$ 0.00</span></p>
             <button onclick="descargarCotizacion()">Descargar PDF</button>
         </div>
 
         <div id="consultar" class="tab-content">
-            <h2>Consultar Cotizaciones por Cliente</h2>
-            <div class="cotizacion-field">
-                <label for="buscarCliente">Buscar Cliente o Proyecto:</label>
-                <input type="text" id="buscarCliente" oninput="filtrarCotizaciones()">
-            </div>
+            <h2>Consultar Cotizaciones</h2>
+            <input type="text" id="buscarCliente" placeholder="Buscar por cliente o proyecto" oninput="filtrarCotizaciones()">
             <div id="listaCotizaciones"></div>
-            <div class="toolbar">
-                <button onclick="exportarCotizaciones()">Exportar Cotizaciones a JSON</button>
-                <input type="file" id="importarCotizacionesFile" accept=".json" style="display:none;" onchange="importarCotizaciones(this.files)">
-                <button onclick="document.getElementById('importarCotizacionesFile').click()">Importar Cotizaciones desde JSON</button>
-            </div>
+            <button onclick="exportarCotizaciones()">Exportar Cotizaciones</button>
+            <input type="file" id="importarCotizaciones" accept=".json" onchange="importarCotizaciones(this.files)">
+            <label for="importarCotizaciones">Importar Cotizaciones</label>
         </div>
     </div>
 
@@ -651,14 +140,39 @@
         };
 
         const msalInstance = new msal.PublicClientApplication(msalConfig);
+        let currentAccount = null;
+        let accessToken = null;
 
-        async function login() {
+        async function getAccessToken() {
+            if (accessToken) return accessToken;
+
+            const accounts = msalInstance.getAllAccounts();
+            if (accounts.length > 0) {
+                currentAccount = accounts[0];
+            }
+
+            if (currentAccount) {
+                try {
+                    const silentRequest = {
+                        scopes: ["User.Read", "Files.ReadWrite"],
+                        account: currentAccount
+                    };
+                    const response = await msalInstance.acquireTokenSilent(silentRequest);
+                    accessToken = response.accessToken;
+                    return accessToken;
+                } catch (error) {
+                    console.log("Fallo en acquireTokenSilent, intentando loginPopup:", error);
+                }
+            }
+
             try {
                 const loginResponse = await msalInstance.loginPopup({
                     scopes: ["User.Read", "Files.ReadWrite"]
                 });
-                console.log("Usuario autenticado:", loginResponse.account);
-                return loginResponse.accessToken;
+                currentAccount = loginResponse.account;
+                accessToken = loginResponse.accessToken;
+                console.log("Usuario autenticado:", currentAccount);
+                return accessToken;
             } catch (error) {
                 console.error("Error en autenticación:", error);
                 throw error;
@@ -695,355 +209,145 @@
 
         function descargarPlantilla() {
             const wb = XLSX.utils.book_new();
-            categorias.forEach(categoria => {
-                const header = ["Descripción", "Unidad", "Cantidad", "Precio Unitario"];
-                const ws = XLSX.utils.aoa_to_sheet([header]);
-                XLSX.utils.book_append_sheet(wb, ws, categoria);
-            });
+            const ws_data = [
+                ["Categoría", "Concepto", "Unidad", "Cantidad", "Valor Unitario", "Valor Total"],
+                ...categorias.map(cat => [cat, "", "", "", "", ""])
+            ];
+            const ws = XLSX.utils.aoa_to_sheet(ws_data);
+            XLSX.utils.book_append_sheet(wb, ws, "APU");
             XLSX.writeFile(wb, "plantilla_apu.xlsx");
         }
 
-        document.getElementById('excelFile').addEventListener('change', function(event) {
+        function leerExcel(event) {
             const file = event.target.files[0];
-            if (file) leerExcel(file);
-        });
-
-        function leerExcel(file) {
             const reader = new FileReader();
             reader.onload = function(e) {
                 const data = new Uint8Array(e.target.result);
-                const workbook = XLSX.read(data, {type: 'array'});
-                categorias.forEach(categoria => {
-                    if (workbook.SheetNames.includes(categoria)) {
-                        const data = XLSX.utils.sheet_to_json(workbook.Sheets[categoria], {header: 1});
-                        insertarDatosDesdeExcel(categoria, data);
-                    }
+                const workbook = XLSX.read(data, { type: 'array' });
+                const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+                const json = XLSX.utils.sheet_to_json(worksheet, { header: ["Categoría", "Concepto", "Unidad", "Cantidad", "Valor Unitario", "Valor Total"], range: 1 });
+                const tbody = document.querySelector("#apuTable tbody");
+                tbody.innerHTML = "";
+                json.forEach(row => {
+                    const tr = document.createElement("tr");
+                    tr.innerHTML = `
+                        <td>${row["Categoría"]}</td>
+                        <td>${row["Concepto"] || ""}</td>
+                        <td>${row["Unidad"] || ""}</td>
+                        <td>${row["Cantidad"] || ""}</td>
+                        <td>${row["Valor Unitario"] || ""}</td>
+                        <td>${row["Valor Total"] || ""}</td>
+                    `;
+                    tbody.appendChild(tr);
                 });
                 calcularAPU();
             };
             reader.readAsArrayBuffer(file);
         }
 
-        function insertarDatosDesdeExcel(categoria, data) {
-            const tabla = document.getElementById(`tabla${categoria}`).getElementsByTagName('tbody')[0];
-            tabla.innerHTML = '';
-            for (let i = 1; i < data.length; i++) {
-                const rowData = data[i];
-                if (rowData && rowData.length === 4) agregarFilaDesdeExcel(categoria, ...rowData);
-            }
-        }
-
-        function agregarFilaDesdeExcel(categoria, descripcion, unidad, cantidad, precioUnitario) {
-            const tabla = document.getElementById(`tabla${categoria}`).getElementsByTagName('tbody')[0];
-            const newRow = tabla.insertRow(-1);
-            newRow.innerHTML = `
-                <td><input type="text" class="editable editable-description" value="${descripcion}"></td>
-                <td><select class="editable unidad${categoria}">
-                    <option value="M2" ${unidad === 'M2' ? 'selected' : ''}>M2</option>
-                    <option value="ML" ${unidad === 'ML' ? 'selected' : ''}>ML</option>
-                    <option value="UND" ${unidad === 'UND' ? 'selected' : ''}>UND</option>
-                </select></td>
-                <td><input type="number" class="editable cantidad${categoria}" value="${cantidad}" min="0"></td>
-                <td><input type="number" class="editable precioUnitario${categoria}" value="${precioUnitario}" min="0"></td>
-                <td class="subtotal${categoria}"></td>
-                <td><button class="delete-btn" onclick="eliminarFila(this, '${categoria}')"><i class="fas fa-trash-alt"></i></button></td>
-            `;
-            agregarEventosCalculadora(newRow, categoria);
-        }
-
-        function agregarFila(categoria) {
-            const tabla = document.getElementById(`tabla${categoria}`).getElementsByTagName('tbody')[0];
-            const newRow = tabla.insertRow(-1);
-            newRow.innerHTML = `
-                <td><input type="text" class="editable editable-description" value="Nuevo ${categoria}"></td>
-                <td><select class="editable unidad${categoria}">
-                    <option value="M2">M2</option>
-                    <option value="ML">ML</option>
-                    <option value="UND">UND</option>
-                </select></td>
-                <td><input type="number" class="editable cantidad${categoria}" value="0" min="0"></td>
-                <td><input type="number" class="editable precioUnitario${categoria}" value="0" min="0"></td>
-                <td class="subtotal${categoria}"></td>
-                <td><button class="delete-btn" onclick="eliminarFila(this, '${categoria}')"><i class="fas fa-trash-alt"></i></button></td>
-            `;
-            agregarEventosCalculadora(newRow, categoria);
-            calcularAPU();
-        }
-
-        function eliminarFila(button, categoria) {
-            button.parentNode.parentNode.remove();
-            calcularAPU();
-        }
-
-        function agregarEventosCalculadora(row, categoria) {
-            row.querySelectorAll('.editable').forEach(input => {
-                input.addEventListener('input', () => calcularAPU());
-            });
-        }
-
-        function calcularSubtotalRow(row, categoria) {
-            const cantidad = parseFloat(row.querySelector(`.cantidad${categoria}`).value) || 0;
-            const precio = parseFloat(row.querySelector(`.precioUnitario${categoria}`).value) || 0;
-            const subtotal = cantidad * precio;
-            row.querySelector(`.subtotal${categoria}`).textContent = formatCurrency(subtotal);
-            return subtotal;
-        }
-
-        function calcularTotal(categoria) {
-            let total = 0;
-            const tabla = document.getElementById(`tabla${categoria}`).getElementsByTagName('tbody')[0];
-            for (let row of tabla.rows) {
-                total += calcularSubtotalRow(row, categoria);
-            }
-            document.getElementById(`total${categoria}`).textContent = formatCurrency(total);
-            return total;
-        }
-
         function calcularAPU() {
-            const totals = {};
-            let subtotal = 0;
-            categorias.forEach(categoria => {
-                totals[categoria] = calcularTotal(categoria);
-                subtotal += totals[categoria];
+            const rows = document.querySelectorAll("#apuTable tbody tr");
+            let total = 0;
+            rows.forEach(row => {
+                const cantidad = parseFloat(row.cells[3].textContent) || 0;
+                const valorUnitario = parseFloat(row.cells[4].textContent) || 0;
+                const valorTotal = cantidad * valorUnitario;
+                row.cells[5].textContent = formatCurrency(valorTotal);
+                total += valorTotal;
             });
-
-            const margenContributivo = parseFloat(document.getElementById("margen_contributivo").value) || 0;
-            const gastos = subtotal * (margenContributivo / 100);
-            const total = subtotal + gastos;
-
-            document.getElementById("resultado").textContent = formatCurrency(total);
-            categorias.forEach(categoria => {
-                const porcentaje = total > 0 ? (totals[categoria] / total * 100) : 0;
-                document.getElementById(`porcentaje${categoria}`).textContent = porcentaje.toFixed(2) + "%";
-            });
-        }
-
-        function descargarPDFCalculadora() {
-            try {
-                const { jsPDF } = window.jspdf;
-                const doc = new jsPDF();
-                const pageWidth = doc.internal.pageSize.getWidth();
-                const margin = 10;
-                let y = margin;
-
-                doc.setFontSize(18);
-                doc.setTextColor(44, 62, 80);
-                doc.text("Análisis de Precio Unitario (APU)", pageWidth / 2, y, { align: "center" });
-                y += 10;
-                doc.setFontSize(10);
-                doc.setTextColor(100);
-                doc.text(`Fecha: ${new Date().toLocaleDateString()}`, pageWidth - margin, y, { align: "right" });
-                y += 10;
-
-                doc.setLineWidth(0.5);
-                doc.setDrawColor(33, 150, 243);
-                doc.line(margin, y, pageWidth - margin, y);
-                y += 10;
-
-                const headers = ["Categoría", "Total"];
-                const data = categorias.map(cat => [
-                    cat,
-                    document.getElementById(`total${cat}`).textContent
-                ]);
-                doc.autoTable({
-                    startY: y,
-                    head: [headers],
-                    body: data,
-                    theme: 'grid',
-                    styles: { fontSize: 10, cellPadding: 2, textColor: [44, 62, 80] },
-                    headStyles: { fillColor: [44, 62, 80], textColor: [255, 255, 255] },
-                    alternateRowStyles: { fillColor: [245, 247, 250] },
-                    columnStyles: {
-                        0: { halign: 'left' },
-                        1: { halign: 'right' }
-                    }
-                });
-                y = doc.lastAutoTable.finalY + 10;
-
-                doc.setFontSize(12);
-                doc.setTextColor(44, 62, 80);
-                doc.text(`Margen Contributivo: ${document.getElementById('margen_contributivo').value}%`, margin, y);
-                y += 10;
-                doc.setFontSize(14);
-                doc.setTextColor(76, 175, 80);
-                doc.text(`Precio Unitario Total: ${document.getElementById('resultado').textContent}`, pageWidth - margin, y, { align: "right" });
-
-                doc.save('apu_profesional.pdf');
-            } catch (error) {
-                console.error("Error al generar el PDF de la calculadora:", error);
-                alert("Error al generar el PDF. Revisa la consola para más detalles.");
-            }
-        }
-
-        function descargarJSON() {
-            const data = categorias.reduce((acc, cat) => {
-                acc[cat] = [];
-                const tabla = document.getElementById(`tabla${cat}`).getElementsByTagName('tbody')[0];
-                for (let row of tabla.rows) {
-                    acc[cat].push([
-                        row.cells[0].querySelector('input').value,
-                        row.cells[1].querySelector('select').value,
-                        row.cells[2].querySelector('input').value,
-                        row.cells[3].querySelector('input').value
-                    ]);
-                }
-                return acc;
-            }, {});
-            data.margenContributivo = document.getElementById('margen_contributivo').value;
-            const json = JSON.stringify(data, null, 2);
-            const blob = new Blob([json], { type: 'application/json' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = 'apu.json';
-            a.click();
-            URL.revokeObjectURL(url);
-        }
-
-        function cargarJSON(files) {
-            const file = files[0];
-            if (!file) return;
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                const data = JSON.parse(e.target.result);
-                categorias.forEach(categoria => {
-                    const tabla = document.getElementById(`tabla${categoria}`).getElementsByTagName('tbody')[0];
-                    tabla.innerHTML = '';
-                    if (data[categoria]) data[categoria].forEach(rowData => agregarFilaDesdeExcel(categoria, ...rowData));
-                });
-                document.getElementById('margen_contributivo').value = data.margenContributivo || 10;
-                calcularAPU();
-            };
-            reader.readAsText(file);
-        }
-
-        function toggleAIU() {
-            const conAIU = document.getElementById("conAIU").checked;
-            document.body.classList.toggle("no-aiu", !conAIU);
+            document.getElementById("totalAPU").textContent = formatCurrency(total);
+            const margen = parseFloat(document.getElementById("margen_contributivo").value) || 0;
+            const totalMargen = total * (1 + margen / 100);
+            document.getElementById("totalAPUMargen").textContent = formatCurrency(totalMargen);
+            document.getElementById("precioUnitario").value = totalMargen.toFixed(2);
             calcularCotizacion();
         }
 
-        function toggleAIUFields() {
-            const moneda = document.getElementById("moneda").value;
-            const isCOP = moneda === "COP";
-            document.getElementById("conAIUField").classList.toggle("hidden", !isCOP);
-            document.getElementById("aiuDesglose").classList.toggle("hidden", !isCOP);
-            document.getElementById("valorAIUField").classList.toggle("hidden", !isCOP);
-            document.getElementById("ivaField").classList.toggle("hidden", !isCOP);
+        function actualizarConsecutivo() {
+            obtenerCotizacionesDesdeSharePoint().then(cotizaciones => {
+                const ultimo = cotizaciones.length > 0 ? Math.max(...cotizaciones.map(c => parseInt(c.consecutivo))) : 0;
+                document.getElementById("consecutivo").textContent = String(ultimo + 1).padStart(3, '0');
+            });
+        }
+
+        function incrementarConsecutivo() {
+            const actual = parseInt(document.getElementById("consecutivo").textContent);
+            const nuevo = String(actual + 1).padStart(3, '0');
+            document.getElementById("consecutivo").textContent = nuevo;
+            return document.getElementById("consecutivo").textContent;
+        }
+
+        function actualizarTasaCambio() {
+            fetch('https://api.exchangerate-api.com/v4/latest/USD')
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById("tasaCambio").value = data.rates.COP.toFixed(2);
+                    calcularCotizacion();
+                })
+                .catch(() => {
+                    document.getElementById("tasaCambio").value = "4100";
+                    calcularCotizacion();
+                });
         }
 
         function actualizarLabelMoneda() {
             const moneda = document.getElementById("moneda").value;
-            document.getElementById("labelPrecioUnitarioMoneda").textContent = `Precio Unitario en ${moneda}`;
+            document.getElementById("labelPrecioUnitarioMoneda").textContent = `Precio Unitario en ${moneda}:`;
+            toggleAIUFields();
+            calcularCotizacion();
+        }
+
+        function toggleAIUFields() {
+            const conAIU = document.getElementById("conAIU").checked && document.getElementById("moneda").value === "COP";
+            document.getElementById("aiuFields").classList.toggle("active", conAIU);
         }
 
         function calcularCotizacion() {
-            let precioUnitarioInput = document.getElementById("precioUnitario").value.replace(/[^0-9.-]+/g, '');
-            let precioUnitario = parseFloat(precioUnitarioInput) || 0;
-            let cantidad = parseFloat(document.getElementById("cantidad").value) || 0;
-            let conAIU = document.getElementById("conAIU").checked;
-            let moneda = document.getElementById("moneda").value;
-            let tasaCambioTexto = document.getElementById("tasaCambio").value;
-            let porcentajeAnticipo = parseFloat(document.getElementById("porcentajeAnticipo").value) || 0;
-            let tasaCambio = 1;
-            let precioUnitarioMoneda = precioUnitario;
-            let precioUnitarioCantidad = 0;
-            let ivaTasa = 0.19;
-            let iva = 0;
-            let totalAIU = 0;
-            let valorAdministrativo = 0;
-            let valorImprevistos = 0;
-            let valorUtilidad = 0;
-            let valorAnticipo = 0;
-
-            document.getElementById("precioUnitarioError").style.display = isNaN(precioUnitario) ? "block" : "none";
-            document.getElementById("cantidadError").style.display = cantidad < 0 ? "block" : "none";
-            if (isNaN(precioUnitario) || cantidad < 0) return;
-
-            if (moneda !== "COP") {
-                const match = tasaCambioTexto.match(/1\w+=([\d,\.]+)COP/);
-                tasaCambio = match ? parseFloat(match[1].replace(/,/g, '')) : 4100;
-                precioUnitarioMoneda = precioUnitario / tasaCambio;
-            }
-
-            document.getElementById("precioUnitarioMoneda").textContent = formatCurrency(precioUnitarioMoneda, moneda);
-
-            if (moneda === "COP" && conAIU) {
-                let administrativo = parseFloat(document.getElementById("administrativo").value) / 100 || 0;
-                let imprevistos = parseFloat(document.getElementById("imprevistos").value) / 100 || 0;
-                let utilidad = parseFloat(document.getElementById("utilidad").value) / 100 || 0;
-
-                precioUnitarioCantidad = precioUnitario * cantidad;
-                valorAdministrativo = precioUnitarioCantidad * administrativo;
-                valorImprevistos = precioUnitarioCantidad * imprevistos;
-                valorUtilidad = precioUnitarioCantidad * utilidad;
-
-                totalAIU = valorAdministrativo + valorImprevistos + valorUtilidad;
-                iva = valorUtilidad * ivaTasa;
-                valorAnticipo = (precioUnitarioCantidad + totalAIU) * (porcentajeAnticipo / 100); // Antes de IVA
-            } else if (moneda === "COP") {
-                precioUnitarioCantidad = precioUnitario * cantidad;
-                iva = precioUnitarioCantidad * ivaTasa;
-                valorAnticipo = precioUnitarioCantidad * (porcentajeAnticipo / 100); // Antes de IVA
-            } else {
-                precioUnitarioCantidad = precioUnitarioMoneda * cantidad;
-                iva = 0;
-                totalAIU = 0;
-                valorAnticipo = precioUnitarioCantidad * (porcentajeAnticipo / 100); // Sobre el total
-            }
-
-            let precioTotal = precioUnitarioCantidad + totalAIU + iva;
-
-            document.getElementById("valorAdministrativo").textContent = formatCurrency(valorAdministrativo, moneda);
-            document.getElementById("valorImprevistos").textContent = formatCurrency(valorImprevistos, moneda);
-            document.getElementById("valorUtilidad").textContent = formatCurrency(valorUtilidad, moneda);
-            document.getElementById("valorAIU").textContent = formatCurrency(totalAIU, moneda);
-            document.getElementById("iva").textContent = formatCurrency(iva, moneda);
-            document.getElementById("precioUnitarioCantidad").textContent = formatCurrency(precioUnitarioCantidad, moneda);
-            document.getElementById("precioTotal").textContent = formatCurrency(precioTotal, moneda);
-            document.getElementById("valorAnticipo").textContent = formatCurrency(valorAnticipo, moneda);
-        }
-
-        function obtenerConsecutivoActual() {
-            const now = new Date();
-            const year = now.getFullYear().toString().slice(-2);
-            const month = String(now.getMonth() + 1).padStart(2, '0');
-            const key = `cotizacion_${year}${month}`;
-            const consecutivo = parseInt(localStorage.getItem(key) || '0', 10);
-            const numero = String(consecutivo).padStart(4, '0');
-            return `SEL${year}${month}${numero}`;
-        }
-
-        function incrementarConsecutivo() {
-            const now = new Date();
-            const year = now.getFullYear().toString().slice(-2);
-            const month = String(now.getMonth() + 1).padStart(2, '0');
-            const key = `cotizacion_${year}${month}`;
-            let consecutivo = parseInt(localStorage.getItem(key) || '0', 10) + 1;
-            localStorage.setItem(key, consecutivo);
-            const numero = String(consecutivo).padStart(4, '0');
-            return `SEL${year}${month}${numero}`;
-        }
-
-        function actualizarConsecutivo() {
-            document.getElementById("consecutivo").textContent = obtenerConsecutivoActual();
-        }
-
-        function actualizarTasaCambio() {
+            const precioUnitario = parseFloat(document.getElementById("precioUnitario").value) || 0;
+            const cantidad = parseFloat(document.getElementById("cantidad").value) || 1;
             const moneda = document.getElementById("moneda").value;
-            const tasasCambio = {
-                "COP": 1,
-                "USD": 4100,
-                "EUR": 4500
-            };
-            let tasaCambioTexto = "";
-            if (moneda === "COP") {
-                tasaCambioTexto = "1COP=1COP";
-            } else {
-                const tasa = tasasCambio[moneda];
-                tasaCambioTexto = `1${moneda}=${formatNumber(tasa)}COP`;
+            const tasaCambio = parseFloat(document.getElementById("tasaCambio").value) || 1;
+            let precioUnitarioMoneda = precioUnitario;
+
+            if (moneda === "USD") {
+                precioUnitarioMoneda = precioUnitario * tasaCambio;
             }
-            document.getElementById("tasaCambio").value = tasaCambioTexto;
+            document.getElementById("precioUnitarioMoneda").textContent = formatCurrency(precioUnitarioMoneda, moneda === "COP" ? "COP" : "COP");
+
+            let precioUnitarioCantidad = precioUnitario * cantidad;
+            let valorAIU = 0;
+
+            if (moneda === "COP" && document.getElementById("conAIU").checked) {
+                const administrativo = parseFloat(document.getElementById("administrativo").value) / 100 || 0;
+                const imprevistos = parseFloat(document.getElementById("imprevistos").value) / 100 || 0;
+                const utilidad = parseFloat(document.getElementById("utilidad").value) / 100 || 0;
+
+                const valorAdministrativo = precioUnitario * administrativo;
+                const valorImprevistos = precioUnitario * imprevistos;
+                const valorUtilidad = precioUnitario * utilidad;
+
+                document.getElementById("valorAdministrativo").textContent = formatCurrency(valorAdministrativo);
+                document.getElementById("valorImprevistos").textContent = formatCurrency(valorImprevistos);
+                document.getElementById("valorUtilidad").textContent = formatCurrency(valorUtilidad);
+
+                valorAIU = valorAdministrativo + valorImprevistos + valorUtilidad;
+                document.getElementById("valorAIU").textContent = formatCurrency(valorAIU);
+
+                precioUnitarioCantidad = (precioUnitario + valorAIU) * cantidad;
+            }
+
+            const iva = moneda === "COP" ? precioUnitarioCantidad * 0.19 : 0;
+            document.getElementById("iva").textContent = formatCurrency(iva);
+
+            const precioUnitarioCantidadTotal = precioUnitarioCantidad;
+            document.getElementById("precioUnitarioCantidad").textContent = formatCurrency(precioUnitarioCantidadTotal);
+
+            const precioTotal = precioUnitarioCantidad + iva;
+            document.getElementById("precioTotal").textContent = formatCurrency(precioTotal);
+
+            const porcentajeAnticipo = parseFloat(document.getElementById("porcentajeAnticipo").value) / 100 || 0;
+            const valorAnticipo = precioTotal * porcentajeAnticipo;
+            document.getElementById("valorAnticipo").textContent = formatCurrency(valorAnticipo);
         }
 
         async function descargarCotizacion() {
@@ -1150,8 +454,8 @@
                 const pdfBlob = doc.output("blob");
                 const fileName = `cotizacion_${consecutivo}_${moneda}_profesional.pdf`;
 
-                const accessToken = await login();
-                const url = "https://graph.microsoft.com/v1.0/me/drive/root:/Cotizaciones/" + fileName + ":/content";
+                const accessToken = await getAccessToken();
+                const url = "https://graph.microsoft.com/v1.0/sites/selco534.sharepoint.com,xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx,yyyyyyyy-yyyy-yyyy-yyyy-yyyyyyyyyyyy/drives/b!KxRr5AdKekWRE2On77gV-_REcnJYw_BJqAH5TSSxbCFOxffOJMG9RJ5EaCkpnjUS/root:/03. Obras cotizadas/Cotizaciones WEB/" + fileName + ":/content";
                 const response = await fetch(url, {
                     method: "PUT",
                     headers: {
@@ -1160,8 +464,8 @@
                     },
                     body: pdfBlob
                 });
-                if (!response.ok) throw new Error("Error al subir a OneDrive: " + response.statusText);
-                console.log("PDF subido a OneDrive:", fileName);
+                if (!response.ok) throw new Error("Error al subir a SharePoint: " + response.statusText);
+                console.log("PDF subido a SharePoint:", fileName);
 
                 doc.save(fileName);
                 await guardarCotizacion();
@@ -1202,12 +506,12 @@
                 tiempoEntrega: document.getElementById("tiempoEntrega").value
             };
 
-            let cotizaciones = await obtenerCotizacionesDesdeOneDrive() || [];
+            let cotizaciones = await obtenerCotizacionesDesdeSharePoint() || [];
             cotizaciones.push(cotizacion);
 
             const jsonBlob = new Blob([JSON.stringify(cotizaciones, null, 2)], { type: "application/json" });
-            const accessToken = await login();
-            const url = "https://graph.microsoft.com/v1.0/me/drive/root:/Cotizaciones/cotizaciones.json:/content";
+            const accessToken = await getAccessToken();
+            const url = "https://graph.microsoft.com/v1.0/sites/selco534.sharepoint.com,xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx,yyyyyyyy-yyyy-yyyy-yyyy-yyyyyyyyyyyy/drives/b!KxRr5AdKekWRE2On77gV-_REcnJYw_BJqAH5TSSxbCFOxffOJMG9RJ5EaCkpnjUS/root:/03. Obras cotizadas/Cotizaciones WEB/cotizaciones.json:/content";
             const response = await fetch(url, {
                 method: "PUT",
                 headers: {
@@ -1216,13 +520,13 @@
                 },
                 body: jsonBlob
             });
-            if (!response.ok) throw new Error("Error al guardar cotizaciones en OneDrive");
-            console.log("Cotizaciones guardadas en OneDrive");
+            if (!response.ok) throw new Error("Error al guardar cotizaciones en SharePoint");
+            console.log("Cotizaciones guardadas en SharePoint");
         }
 
-        async function obtenerCotizacionesDesdeOneDrive() {
-            const accessToken = await login();
-            const url = "https://graph.microsoft.com/v1.0/me/drive/root:/Cotizaciones/cotizaciones.json:/content";
+        async function obtenerCotizacionesDesdeSharePoint() {
+            const accessToken = await getAccessToken();
+            const url = "https://graph.microsoft.com/v1.0/sites/selco534.sharepoint.com,xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx,yyyyyyyy-yyyy-yyyy-yyyy-yyyyyyyyyyyy/drives/b!KxRr5AdKekWRE2On77gV-_REcnJYw_BJqAH5TSSxbCFOxffOJMG9RJ5EaCkpnjUS/root:/03. Obras cotizadas/Cotizaciones WEB/cotizaciones.json:/content";
             try {
                 const response = await fetch(url, {
                     headers: { "Authorization": "Bearer " + accessToken }
@@ -1233,21 +537,14 @@
                 }
                 return [];
             } catch (error) {
-                console.log("No se encontró cotizaciones.json en OneDrive aún.");
+                console.log("No se encontró cotizaciones.json en SharePoint aún.");
                 return [];
             }
         }
 
-        function usarEnCotizacion() {
-            const precioUnitarioTotal = parseFloat(document.getElementById("resultado").textContent.replace(/[^0-9.-]+/g, '')) || 0;
-            document.getElementById("precioUnitario").value = formatCurrency(precioUnitarioTotal, 'COP');
-            openTab('cotizacion');
-            calcularCotizacion();
-        }
-
         async function filtrarCotizaciones() {
             const buscar = document.getElementById("buscarCliente").value.toLowerCase();
-            const cotizaciones = await obtenerCotizacionesDesdeOneDrive();
+            const cotizaciones = await obtenerCotizacionesDesdeSharePoint();
             let lista = document.getElementById("listaCotizaciones");
             lista.innerHTML = "";
 
@@ -1269,7 +566,7 @@
         }
 
         function verDetalles(index) {
-            obtenerCotizacionesDesdeOneDrive().then(cotizaciones => {
+            obtenerCotizacionesDesdeSharePoint().then(cotizaciones => {
                 let cotizacion = cotizaciones[index];
                 if (!cotizacion) return;
 
@@ -1308,7 +605,7 @@
         }
 
         async function exportarCotizaciones() {
-            const cotizaciones = await obtenerCotizacionesDesdeOneDrive();
+            const cotizaciones = await obtenerCotizacionesDesdeSharePoint();
             const json = JSON.stringify(cotizaciones, null, 2);
             const blob = new Blob([json], { type: 'application/json' });
             const url = URL.createObjectURL(blob);
@@ -1319,7 +616,7 @@
             URL.revokeObjectURL(url);
         }
 
-        function importarCotizaciones(files) {
+        async function importarCotizaciones(files) {
             const file = files[0];
             if (!file) return;
 
@@ -1327,7 +624,7 @@
             reader.onload = async function(e) {
                 try {
                     const nuevasCotizaciones = JSON.parse(e.target.result);
-                    let cotizacionesExistentes = await obtenerCotizacionesDesdeOneDrive() || [];
+                    let cotizacionesExistentes = await obtenerCotizacionesDesdeSharePoint() || [];
                     
                     nuevasCotizaciones.forEach(nueva => {
                         if (!cotizacionesExistentes.some(existente => existente.consecutivo === nueva.consecutivo)) {
@@ -1336,8 +633,8 @@
                     });
 
                     const jsonBlob = new Blob([JSON.stringify(cotizacionesExistentes, null, 2)], { type: "application/json" });
-                    const accessToken = await login();
-                    const url = "https://graph.microsoft.com/v1.0/me/drive/root:/Cotizaciones/cotizaciones.json:/content";
+                    const accessToken = await getAccessToken();
+                    const url = "https://graph.microsoft.com/v1.0/sites/selco534.sharepoint.com,xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx,yyyyyyyy-yyyy-yyyy-yyyy-yyyyyyyyyyyy/drives/b!KxRr5AdKekWRE2On77gV-_REcnJYw_BJqAH5TSSxbCFOxffOJMG9RJ5EaCkpnjUS/root:/03. Obras cotizadas/Cotizaciones WEB/cotizaciones.json:/content";
                     const response = await fetch(url, {
                         method: "PUT",
                         headers: {
@@ -1346,7 +643,7 @@
                         },
                         body: jsonBlob
                     });
-                    if (!response.ok) throw new Error("Error al importar cotizaciones a OneDrive");
+                    if (!response.ok) throw new Error("Error al importar cotizaciones a SharePoint");
                     filtrarCotizaciones();
                     alert("Cotizaciones importadas con éxito.");
                 } catch (error) {
