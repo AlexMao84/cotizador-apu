@@ -4,6 +4,7 @@
     <title>Calculadora y Cotización</title>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <script src="https://alcdn.msauth.net/browser/2.30.0/js/msal-browser.min.js"></script>
     <style>
         body {
             font-family: 'Roboto', sans-serif;
@@ -388,7 +389,6 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
-    <script src="https://alcdn.msauth.net/browser/2.30.0/js/msal-browser.min.js"></script>
 </head>
 <body class="con-aiu">
     <div class="container">
@@ -639,6 +639,32 @@
     </div>
 
     <script>
+        const msalConfig = {
+            auth: {
+                clientId: "d7dc1b41-eae3-46ed-810a-108e4db85941",
+                authority: "https://login.microsoftonline.com/common",
+                redirectUri: "https://alexmao84.github.io/cotizador-apu/"
+            },
+            cache: {
+                cacheLocation: "localStorage"
+            }
+        };
+
+        const msalInstance = new msal.PublicClientApplication(msalConfig);
+
+        async function login() {
+            try {
+                const loginResponse = await msalInstance.loginPopup({
+                    scopes: ["User.Read", "Files.ReadWrite"]
+                });
+                console.log("Usuario autenticado:", loginResponse.account);
+                return loginResponse.accessToken;
+            } catch (error) {
+                console.error("Error en autenticación:", error);
+                throw error;
+            }
+        }
+
         const categorias = ["Preliminares", "Administrativo", "ManoObra", "Materiales", "SST", "LogisticaTransporte", "HerramientasEquipos", "Viaticos"];
 
         function formatNumber(number) {
@@ -1020,7 +1046,7 @@
             document.getElementById("tasaCambio").value = tasaCambioTexto;
         }
 
-        function descargarCotizacion() {
+        async function descargarCotizacion() {
             try {
                 const { jsPDF } = window.jspdf;
                 const doc = new jsPDF();
@@ -1038,7 +1064,6 @@
                 const consecutivo = incrementarConsecutivo();
                 let y = margin;
 
-                // Encabezado
                 doc.setFontSize(18);
                 doc.setTextColor(44, 62, 80);
                 doc.text("Cotización", pageWidth / 2, y, { align: "center" });
@@ -1050,13 +1075,11 @@
                 doc.text(`Fecha: ${new Date().toLocaleDateString()}`, pageWidth - margin, y, { align: "right" });
                 y += 10;
 
-                // Línea divisoria
                 doc.setLineWidth(0.5);
                 doc.setDrawColor(33, 150, 243);
                 doc.line(margin, y, pageWidth - margin, y);
                 y += 10;
 
-                // Información del cliente
                 doc.setFontSize(12);
                 doc.setTextColor(44, 62, 80);
                 doc.text(`Cliente: ${nombreCliente}`, margin, y);
@@ -1067,7 +1090,6 @@
                 doc.text(document.getElementById('descripcion').value, margin + 5, y + 5, { maxWidth: pageWidth - margin * 2 });
                 y += Math.ceil(doc.getTextDimensions(document.getElementById('descripcion').value, { maxWidth: pageWidth - margin * 2 }).h) + 10;
 
-                // Tabla de detalles
                 const detallesHeaders = ["Concepto", "Valor"];
                 let detallesBody = [
                     [`Precio Unitario (${unidadMedida})`, document.getElementById('precioUnitario').value],
@@ -1102,7 +1124,6 @@
                 });
                 y = doc.lastAutoTable.finalY + 10;
 
-                // Condiciones de la Cotización
                 doc.setFontSize(12);
                 doc.setTextColor(44, 62, 80);
                 doc.text("Condiciones de la Cotización:", margin, y);
@@ -1120,23 +1141,38 @@
                 });
                 y += condiciones.length * 5 + 10;
 
-                // Total destacado
                 doc.setFillColor(232, 245, 233);
                 doc.rect(margin, y, pageWidth - margin * 2, 10, 'F');
                 doc.setFontSize(14);
                 doc.setTextColor(76, 175, 80);
                 doc.text(`Precio Total: ${document.getElementById('precioTotal').textContent}`, pageWidth - margin, y + 7, { align: "right" });
 
-                doc.save(`cotizacion_${consecutivo}_${moneda}_profesional.pdf`);
-                guardarCotizacion();
+                const pdfBlob = doc.output("blob");
+                const fileName = `cotizacion_${consecutivo}_${moneda}_profesional.pdf`;
+
+                const accessToken = await login();
+                const url = "https://graph.microsoft.com/v1.0/me/drive/root:/Cotizaciones/" + fileName + ":/content";
+                const response = await fetch(url, {
+                    method: "PUT",
+                    headers: {
+                        "Authorization": "Bearer " + accessToken,
+                        "Content-Type": "application/pdf"
+                    },
+                    body: pdfBlob
+                });
+                if (!response.ok) throw new Error("Error al subir a OneDrive: " + response.statusText);
+                console.log("PDF subido a OneDrive:", fileName);
+
+                doc.save(fileName);
+                await guardarCotizacion();
                 actualizarConsecutivo();
             } catch (error) {
-                console.error("Error al generar el PDF de la cotización:", error);
-                alert("Error al generar el PDF. Revisa la consola para más detalles.");
+                console.error("Error en descargarCotizacion:", error);
+                alert("Error al generar o subir el PDF. Revisa la consola.");
             }
         }
 
-        function guardarCotizacion() {
+        async function guardarCotizacion() {
             const cotizacion = {
                 consecutivo: document.getElementById("consecutivo").textContent,
                 fecha: new Date().toLocaleDateString(),
@@ -1166,9 +1202,40 @@
                 tiempoEntrega: document.getElementById("tiempoEntrega").value
             };
 
-            let cotizaciones = JSON.parse(localStorage.getItem("cotizaciones")) || [];
+            let cotizaciones = await obtenerCotizacionesDesdeOneDrive() || [];
             cotizaciones.push(cotizacion);
-            localStorage.setItem("cotizaciones", JSON.stringify(cotizaciones));
+
+            const jsonBlob = new Blob([JSON.stringify(cotizaciones, null, 2)], { type: "application/json" });
+            const accessToken = await login();
+            const url = "https://graph.microsoft.com/v1.0/me/drive/root:/Cotizaciones/cotizaciones.json:/content";
+            const response = await fetch(url, {
+                method: "PUT",
+                headers: {
+                    "Authorization": "Bearer " + accessToken,
+                    "Content-Type": "application/json"
+                },
+                body: jsonBlob
+            });
+            if (!response.ok) throw new Error("Error al guardar cotizaciones en OneDrive");
+            console.log("Cotizaciones guardadas en OneDrive");
+        }
+
+        async function obtenerCotizacionesDesdeOneDrive() {
+            const accessToken = await login();
+            const url = "https://graph.microsoft.com/v1.0/me/drive/root:/Cotizaciones/cotizaciones.json:/content";
+            try {
+                const response = await fetch(url, {
+                    headers: { "Authorization": "Bearer " + accessToken }
+                });
+                if (response.ok) {
+                    const jsonText = await response.text();
+                    return JSON.parse(jsonText);
+                }
+                return [];
+            } catch (error) {
+                console.log("No se encontró cotizaciones.json en OneDrive aún.");
+                return [];
+            }
         }
 
         function usarEnCotizacion() {
@@ -1178,16 +1245,16 @@
             calcularCotizacion();
         }
 
-        function filtrarCotizaciones() {
+        async function filtrarCotizaciones() {
             const buscar = document.getElementById("buscarCliente").value.toLowerCase();
-            let cotizaciones = JSON.parse(localStorage.getItem("cotizaciones")) || [];
+            const cotizaciones = await obtenerCotizacionesDesdeOneDrive();
             let lista = document.getElementById("listaCotizaciones");
-            lista.innerHTML = '';
+            lista.innerHTML = "";
 
             cotizaciones.forEach((cotizacion, index) => {
                 if (cotizacion.cliente.toLowerCase().includes(buscar) || 
                     cotizacion.proyecto.toLowerCase().includes(buscar)) {
-                    let div = document.createElement('div');
+                    let div = document.createElement("div");
                     div.innerHTML = `
                         <h3>Cotización No: ${cotizacion.consecutivo}</h3>
                         <p>Cliente: ${cotizacion.cliente}</p>
@@ -1202,45 +1269,46 @@
         }
 
         function verDetalles(index) {
-            let cotizaciones = JSON.parse(localStorage.getItem("cotizaciones")) || [];
-            let cotizacion = cotizaciones[index];
-            if (!cotizacion) return;
+            obtenerCotizacionesDesdeOneDrive().then(cotizaciones => {
+                let cotizacion = cotizaciones[index];
+                if (!cotizacion) return;
 
-            let detalles = document.createElement('div');
-            detalles.innerHTML = `
-                <h3>Detalles de la Cotización No: ${cotizacion.consecutivo}</h3>
-                <p>Cliente: ${cotizacion.cliente}</p>
-                <p>Proyecto: ${cotizacion.proyecto}</p>
-                <p>Descripción: ${cotizacion.descripcion}</p>
-                <p>Precio Unitario: ${cotizacion.precioUnitario}</p>
-                <p>Unidad de Medida: ${cotizacion.unidadMedida}</p>
-                <p>Cantidad: ${cotizacion.cantidad}</p>
-                <p>Moneda: ${cotizacion.moneda}</p>
-                <p>Tasa de Cambio: ${cotizacion.tasaCambio}</p>
-                <p>Precio Unitario en ${cotizacion.moneda}: ${cotizacion.precioUnitarioMoneda}</p>
-                ${cotizacion.conAIU ? `
-                    <p>Administración: ${cotizacion.administrativo}% (${cotizacion.valorAdministrativo})</p>
-                    <p>Imprevistos: ${cotizacion.imprevistos}% (${cotizacion.valorImprevistos})</p>
-                    <p>Utilidad: ${cotizacion.utilidad}% (${cotizacion.valorUtilidad})</p>
-                    <p>Valor Total AIU: ${cotizacion.valorAIU}</p>
-                ` : ''}
-                <p>IVA: ${cotizacion.iva}</p>
-                <p>Precio Unitario por Cantidad: ${cotizacion.precioUnitarioCantidad}</p>
-                <p>Precio Total: ${cotizacion.precioTotal}</p>
-                <p>Forma de Pago: ${cotizacion.formaPago}</p>
-                <p>Anticipo: ${cotizacion.porcentajeAnticipo}% (${cotizacion.valorAnticipo})</p>
-                <p>Tiempo de Entrega: ${cotizacion.tiempoEntrega}</p>
-                <button onclick="cerrarDetalles(this)">Cerrar</button>
-            `;
-            document.getElementById("listaCotizaciones").appendChild(detalles);
+                let detalles = document.createElement('div');
+                detalles.innerHTML = `
+                    <h3>Detalles de la Cotización No: ${cotizacion.consecutivo}</h3>
+                    <p>Cliente: ${cotizacion.cliente}</p>
+                    <p>Proyecto: ${cotizacion.proyecto}</p>
+                    <p>Descripción: ${cotizacion.descripcion}</p>
+                    <p>Precio Unitario: ${cotizacion.precioUnitario}</p>
+                    <p>Unidad de Medida: ${cotizacion.unidadMedida}</p>
+                    <p>Cantidad: ${cotizacion.cantidad}</p>
+                    <p>Moneda: ${cotizacion.moneda}</p>
+                    <p>Tasa de Cambio: ${cotizacion.tasaCambio}</p>
+                    <p>Precio Unitario en ${cotizacion.moneda}: ${cotizacion.precioUnitarioMoneda}</p>
+                    ${cotizacion.conAIU ? `
+                        <p>Administración: ${cotizacion.administrativo}% (${cotizacion.valorAdministrativo})</p>
+                        <p>Imprevistos: ${cotizacion.imprevistos}% (${cotizacion.valorImprevistos})</p>
+                        <p>Utilidad: ${cotizacion.utilidad}% (${cotizacion.valorUtilidad})</p>
+                        <p>Valor Total AIU: ${cotizacion.valorAIU}</p>
+                    ` : ''}
+                    <p>IVA: ${cotizacion.iva}</p>
+                    <p>Precio Unitario por Cantidad: ${cotizacion.precioUnitarioCantidad}</p>
+                    <p>Precio Total: ${cotizacion.precioTotal}</p>
+                    <p>Forma de Pago: ${cotizacion.formaPago}</p>
+                    <p>Anticipo: ${cotizacion.porcentajeAnticipo}% (${cotizacion.valorAnticipo})</p>
+                    <p>Tiempo de Entrega: ${cotizacion.tiempoEntrega}</p>
+                    <button onclick="cerrarDetalles(this)">Cerrar</button>
+                `;
+                document.getElementById("listaCotizaciones").appendChild(detalles);
+            });
         }
 
         function cerrarDetalles(button) {
             button.parentElement.remove();
         }
 
-        function exportarCotizaciones() {
-            let cotizaciones = JSON.parse(localStorage.getItem("cotizaciones")) || [];
+        async function exportarCotizaciones() {
+            const cotizaciones = await obtenerCotizacionesDesdeOneDrive();
             const json = JSON.stringify(cotizaciones, null, 2);
             const blob = new Blob([json], { type: 'application/json' });
             const url = URL.createObjectURL(blob);
@@ -1256,10 +1324,10 @@
             if (!file) return;
 
             const reader = new FileReader();
-            reader.onload = function(e) {
+            reader.onload = async function(e) {
                 try {
                     const nuevasCotizaciones = JSON.parse(e.target.result);
-                    let cotizacionesExistentes = JSON.parse(localStorage.getItem("cotizaciones")) || [];
+                    let cotizacionesExistentes = await obtenerCotizacionesDesdeOneDrive() || [];
                     
                     nuevasCotizaciones.forEach(nueva => {
                         if (!cotizacionesExistentes.some(existente => existente.consecutivo === nueva.consecutivo)) {
@@ -1267,7 +1335,18 @@
                         }
                     });
 
-                    localStorage.setItem("cotizaciones", JSON.stringify(cotizacionesExistentes));
+                    const jsonBlob = new Blob([JSON.stringify(cotizacionesExistentes, null, 2)], { type: "application/json" });
+                    const accessToken = await login();
+                    const url = "https://graph.microsoft.com/v1.0/me/drive/root:/Cotizaciones/cotizaciones.json:/content";
+                    const response = await fetch(url, {
+                        method: "PUT",
+                        headers: {
+                            "Authorization": "Bearer " + accessToken,
+                            "Content-Type": "application/json"
+                        },
+                        body: jsonBlob
+                    });
+                    if (!response.ok) throw new Error("Error al importar cotizaciones a OneDrive");
                     filtrarCotizaciones();
                     alert("Cotizaciones importadas con éxito.");
                 } catch (error) {
