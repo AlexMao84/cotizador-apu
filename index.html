@@ -1277,9 +1277,52 @@
             reader.readAsText(file);
         }
 
+        // Nueva función para precargar el JSON desde GitHub Pages
+        function cargarJSONPrecargado() {
+            const url = 'https://alexmao84.github.io/cotizador-apu/data/datos_apu.json'; // URL del archivo JSON en tu repositorio
+            fetch(url)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('No se pudo cargar el archivo JSON');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    // Limpiar las tablas actuales
+                    categorias.forEach(categoria => {
+                        const tabla = document.getElementById(`tabla${categoria}`).getElementsByTagName('tbody')[0];
+                        tabla.innerHTML = '';
+                    });
+
+                    // Insertar los datos del JSON en las tablas
+                    categorias.forEach(categoria => {
+                        if (data[categoria] && Array.isArray(data[categoria])) {
+                            data[categoria].forEach(rowData => {
+                                if (rowData.length === 4) {
+                                    agregarFilaDesdeExcel(categoria, rowData[0], rowData[1], rowData[2], rowData[3]);
+                                }
+                            });
+                        }
+                    });
+
+                    // Cargar el margen contributivo
+                    document.getElementById('margen_contributivo').value = data.margenContributivo || 10;
+
+                    // Calcular el APU después de cargar los datos
+                    calcularAPU();
+                })
+                .catch(error => {
+                    console.error('Error al cargar el JSON precargado:', error);
+                    // Si falla, sigue con los valores por defecto
+                    calcularAPU();
+                });
+        }
+
         document.getElementById('margen_contributivo').addEventListener('input', calcularAPU);
+
+        // Actualizar el evento window.onload para precargar el JSON
         window.onload = function() {
-            calcularAPU();
+            cargarJSONPrecargado(); // Cargar el JSON primero
             calcularCotizacion();
             actualizarConsecutivo();
             actualizarTasaCambio();
