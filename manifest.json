@@ -1,0 +1,21 @@
+{
+    "name": "Cotizador APU",
+    "short_name": "Cotizador",
+    "description": "Calculadora y cotizador de análisis de precios unitarios",
+    "start_url": "/cotizador-apu/",
+    "display": "standalone",
+    "background_color": "#f5f7fa",
+    "theme_color": "#2196F3",
+    "icons": [
+        {
+            "src": "/cotizador-apu/icon-192x192.png",
+            "sizes": "192x192",
+            "type": "image/png"
+        },
+        {
+            "src": "/cotizador-apu/icon-512x512.png",
+            "sizes": "512x512",
+            "type": "image/png"
+        }
+    ]
+}

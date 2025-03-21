@@ -4,6 +4,11 @@
     <title>Calculadora y Cotización</title>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <link rel="manifest" href="/cotizador-apu/manifest.json">
+    <meta name="theme-color" content="#2196F3">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <style>
         body {
             font-family: 'Roboto', sans-serif;
@@ -953,16 +958,16 @@
 
                 totalAIU = valorAdministrativo + valorImprevistos + valorUtilidad;
                 iva = valorUtilidad * ivaTasa;
-                valorAnticipo = (precioUnitarioCantidad + totalAIU) * (porcentajeAnticipo / 100); // Antes de IVA
+                valorAnticipo = (precioUnitarioCantidad + totalAIU) * (porcentajeAnticipo / 100);
             } else if (moneda === "COP") {
                 precioUnitarioCantidad = precioUnitario * cantidad;
                 iva = precioUnitarioCantidad * ivaTasa;
-                valorAnticipo = precioUnitarioCantidad * (porcentajeAnticipo / 100); // Antes de IVA
+                valorAnticipo = precioUnitarioCantidad * (porcentajeAnticipo / 100);
             } else {
                 precioUnitarioCantidad = precioUnitarioMoneda * cantidad;
                 iva = 0;
                 totalAIU = 0;
-                valorAnticipo = precioUnitarioCantidad * (porcentajeAnticipo / 100); // Sobre el total
+                valorAnticipo = precioUnitarioCantidad * (porcentajeAnticipo / 100);
             }
 
             let precioTotal = precioUnitarioCantidad + totalAIU + iva;
@@ -1037,7 +1042,6 @@
                 const consecutivo = incrementarConsecutivo();
                 let y = margin;
 
-                // Encabezado
                 doc.setFontSize(18);
                 doc.setTextColor(44, 62, 80);
                 doc.text("Cotización", pageWidth / 2, y, { align: "center" });
@@ -1049,13 +1053,11 @@
                 doc.text(`Fecha: ${new Date().toLocaleDateString()}`, pageWidth - margin, y, { align: "right" });
                 y += 10;
 
-                // Línea divisoria
                 doc.setLineWidth(0.5);
                 doc.setDrawColor(33, 150, 243);
                 doc.line(margin, y, pageWidth - margin, y);
                 y += 10;
 
-                // Información del cliente
                 doc.setFontSize(12);
                 doc.setTextColor(44, 62, 80);
                 doc.text(`Cliente: ${nombreCliente}`, margin, y);
@@ -1066,7 +1068,6 @@
                 doc.text(document.getElementById('descripcion').value, margin + 5, y + 5, { maxWidth: pageWidth - margin * 2 });
                 y += Math.ceil(doc.getTextDimensions(document.getElementById('descripcion').value, { maxWidth: pageWidth - margin * 2 }).h) + 10;
 
-                // Tabla de detalles
                 const detallesHeaders = ["Concepto", "Valor"];
                 let detallesBody = [
                     [`Precio Unitario (${unidadMedida})`, document.getElementById('precioUnitario').value],
@@ -1101,7 +1102,6 @@
                 });
                 y = doc.lastAutoTable.finalY + 10;
 
-                // Condiciones de la Cotización
                 doc.setFontSize(12);
                 doc.setTextColor(44, 62, 80);
                 doc.text("Condiciones de la Cotización:", margin, y);
@@ -1119,7 +1119,6 @@
                 });
                 y += condiciones.length * 5 + 10;
 
-                // Total destacado
                 doc.setFillColor(232, 245, 233);
                 doc.rect(margin, y, pageWidth - margin * 2, 10, 'F');
                 doc.setFontSize(14);
@@ -1206,6 +1205,7 @@
             if (!cotizacion) return;
 
             let detalles = document.createElement('div');
+            detalles.className = 'detalles-cotizacion';
             detalles.innerHTML = `
                 <h3>Detalles de la Cotización No: ${cotizacion.consecutivo}</h3>
                 <p>Cliente: ${cotizacion.cliente}</p>
@@ -1217,25 +1217,25 @@
                 <p>Moneda: ${cotizacion.moneda}</p>
                 <p>Tasa de Cambio: ${cotizacion.tasaCambio}</p>
                 <p>Precio Unitario en ${cotizacion.moneda}: ${cotizacion.precioUnitarioMoneda}</p>
-                ${cotizacion.conAIU ? `
+                ${cotizacion.conAIU && cotizacion.moneda === "COP" ? `
                     <p>Administración: ${cotizacion.administrativo}% (${cotizacion.valorAdministrativo})</p>
                     <p>Imprevistos: ${cotizacion.imprevistos}% (${cotizacion.valorImprevistos})</p>
                     <p>Utilidad: ${cotizacion.utilidad}% (${cotizacion.valorUtilidad})</p>
                     <p>Valor Total AIU: ${cotizacion.valorAIU}</p>
-                ` : ''}
-                <p>IVA: ${cotizacion.iva}</p>
+                ` : ""}
+                ${cotizacion.moneda === "COP" ? `<p>IVA: ${cotizacion.iva}</p>` : ""}
                 <p>Precio Unitario por Cantidad: ${cotizacion.precioUnitarioCantidad}</p>
-                <p>Precio Total: ${cotizacion.precioTotal}</p>
                 <p>Forma de Pago: ${cotizacion.formaPago}</p>
-                <p>Anticipo: ${cotizacion.porcentajeAnticipo}% (${cotizacion.valorAnticipo})</p>
+                <p>Porcentaje de Anticipo: ${cotizacion.porcentajeAnticipo}% (${cotizacion.valorAnticipo})</p>
                 <p>Tiempo de Entrega: ${cotizacion.tiempoEntrega}</p>
+                <p><strong>Precio Total: ${cotizacion.precioTotal}</strong></p>
                 <button onclick="cerrarDetalles(this)">Cerrar</button>
             `;
             document.getElementById("listaCotizaciones").appendChild(detalles);
         }
 
         function cerrarDetalles(button) {
-            button.parentElement.remove();
+            button.parentNode.remove();
         }
 
         function exportarCotizaciones() {
@@ -1253,76 +1253,43 @@
         function importarCotizaciones(files) {
             const file = files[0];
             if (!file) return;
-
             const reader = new FileReader();
             reader.onload = function(e) {
-                try {
-                    const nuevasCotizaciones = JSON.parse(e.target.result);
-                    let cotizacionesExistentes = JSON.parse(localStorage.getItem("cotizaciones")) || [];
-                    
-                    nuevasCotizaciones.forEach(nueva => {
-                        if (!cotizacionesExistentes.some(existente => existente.consecutivo === nueva.consecutivo)) {
-                            cotizacionesExistentes.push(nueva);
-                        }
-                    });
-
-                    localStorage.setItem("cotizaciones", JSON.stringify(cotizacionesExistentes));
-                    filtrarCotizaciones();
-                    alert("Cotizaciones importadas con éxito.");
-                } catch (error) {
-                    console.error("Error al importar cotizaciones:", error);
-                    alert("Error al importar el archivo JSON. Asegúrate de que sea válido.");
-                }
+                const data = JSON.parse(e.target.result);
+                localStorage.setItem("cotizaciones", JSON.stringify(data));
+                filtrarCotizaciones();
             };
             reader.readAsText(file);
         }
 
-        // Nueva función para precargar el JSON desde GitHub Pages
         function cargarJSONPrecargado() {
-            const url = 'https://alexmao84.github.io/cotizador-apu/data/datos_apu.json'; // URL del archivo JSON en tu repositorio
-            fetch(url)
-                .then(response => {
-                    if (!response.ok) {
-                        throw new Error('No se pudo cargar el archivo JSON');
-                    }
-                    return response.json();
-                })
+            fetch('/cotizador-apu/data/datos_apu.json')
+                .then(response => response.json())
                 .then(data => {
-                    // Limpiar las tablas actuales
                     categorias.forEach(categoria => {
                         const tabla = document.getElementById(`tabla${categoria}`).getElementsByTagName('tbody')[0];
                         tabla.innerHTML = '';
+                        if (data[categoria]) data[categoria].forEach(rowData => agregarFilaDesdeExcel(categoria, ...rowData));
                     });
-
-                    // Insertar los datos del JSON en las tablas
-                    categorias.forEach(categoria => {
-                        if (data[categoria] && Array.isArray(data[categoria])) {
-                            data[categoria].forEach(rowData => {
-                                if (rowData.length === 4) {
-                                    agregarFilaDesdeExcel(categoria, rowData[0], rowData[1], rowData[2], rowData[3]);
-                                }
-                            });
-                        }
-                    });
-
-                    // Cargar el margen contributivo
                     document.getElementById('margen_contributivo').value = data.margenContributivo || 10;
-
-                    // Calcular el APU después de cargar los datos
                     calcularAPU();
                 })
-                .catch(error => {
-                    console.error('Error al cargar el JSON precargado:', error);
-                    // Si falla, sigue con los valores por defecto
-                    calcularAPU();
-                });
+                .catch(error => console.error('Error al cargar JSON precargado:', error));
+        }
+
+        // Registro del Service Worker para PWA
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/cotizador-apu/sw.js')
+                    .then(registration => console.log('Service Worker registrado:', registration))
+                    .catch(error => console.error('Error al registrar Service Worker:', error));
+            });
         }
 
         document.getElementById('margen_contributivo').addEventListener('input', calcularAPU);
 
-        // Actualizar el evento window.onload para precargar el JSON
         window.onload = function() {
-            cargarJSONPrecargado(); // Cargar el JSON primero
+            cargarJSONPrecargado();
             calcularCotizacion();
             actualizarConsecutivo();
             actualizarTasaCambio();
