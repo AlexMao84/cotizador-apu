@@ -1,0 +1,70 @@
+{
+  "Preliminares": [],
+  "Administrativo": [],
+  "ManoObra": [
+    [
+      "MANO DE OBRA CALIFICADA PARA  CORTE, MECANIZACION, FABRICACION  DE LAMINAS DE ALUMINIO COMPUESTO  Arquitecto dibujante, Operario de corte y mecanizado y personal de fabricación",
+      "M2",
+      "1",
+      "20000"
+    ],
+    [
+      "MANO DE OBRA CALIFICADA PARA  CNSTALACION  DE LAMINAS DE ALUMINIO COMPUESTO\t",
+      "M2",
+      "1",
+      "60000"
+    ]
+  ],
+  "Materiales": [
+    [
+      "SUMINISTRO Y  MODULACION  DE LAMINAS DE ALUMINIO COMPUESTO ",
+      "M2",
+      "1",
+      "269000"
+    ],
+    [
+      "SUMINISTRO CORTE Y FABRICACION DE SUB ESTRUCTURA DE NIVELACION PROPIA DEL SISTEMA EN ALUMINIO ANCLADA CON TORNILLERIA A LA ESTRUCTURA METALICA EXISTENTE, PARA EL ANCLAJE DE LOS PANELES EN ALUMINIO COMPUESTO ",
+      "M2",
+      "1",
+      "45000"
+    ],
+    [
+      "ELEMENTOS DE SELLADO Y REMATES",
+      "M2",
+      "1",
+      "12500"
+    ]
+  ],
+  "SST": [
+    [
+      "Elementos de Seguridad Industrial, señalización y EPPS",
+      "M2",
+      "1",
+      "3800"
+    ]
+  ],
+  "LogisticaTransporte": [
+    [
+      "TRANSPORTE MEDELLIN-RIONEGRO Y RETORNO",
+      "M2",
+      "1",
+      "2500"
+    ],
+    [
+      "TRANSPORTE DE MATERIAL DE BODEGA A OBRA, TRANSPORTES VARIOS \t",
+      "M2",
+      "1",
+      "574.71"
+    ]
+  ],
+  "HerramientasEquipos": [
+    [
+      "SUMINISTRO ANDAMIO MULTIDIRECCIONAL ( ARME Y DESARME, TRASIEGOS Y LOGISTICA DEL EQUIPO)",
+      "M2",
+      "1",
+      "22000"
+    ]
+  ],
+  "Viaticos": [],
+  "margenContributivo": "12"
+}
