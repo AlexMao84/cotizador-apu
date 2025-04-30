@@ -1,388 +1,793 @@
+<script type="text/javascript">
+    var gk_isXlsx = false;
+    var gk_xlsxFileLookup = {};
+    var gk_fileData = {};
+    function filledCell(cell) {
+        return cell !== '' && cell != null;
+    }
+    function loadFileData(filename) {
+        if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
+            try {
+                var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
+                var firstSheetName = workbook.SheetNames[0];
+                var worksheet = workbook.Sheets[firstSheetName];
+
+                // Convert sheet to JSON to filter blank rows
+                var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
+                // Filter out blank rows (rows where all cells are empty, null, or undefined)
+                var filteredData = jsonData.filter(row => row.some(filledCell));
+
+                // Heuristic to find the header row by ignoring rows with fewer filled cells than the next row
+                var headerRowIndex = filteredData.findIndex((row, index) =>
+                    row.filter(filledCell).length >= filteredData[index + 1]?.filter(filledCell).length
+                );
+                // Fallback
+                if (headerRowIndex === -1 || headerRowIndex > 25) {
+                    headerRowIndex = 0;
+                }
+
+                // Convert filtered JSON back to CSV
+                var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex)); // Create a new sheet from filtered array of arrays
+                csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
+                return csv;
+            } catch (e) {
+                console.error(e);
+                return "";
+            }
+        }
+        return gk_fileData[filename] || "";
+    }
+</script>
 <!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Calculadora y Cotización</title>
-    <!-- Fuentes e íconos para un diseño profesional -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <title>Cotizador APU</title>
+    <link rel="icon" href="favicon.ico">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/choices.js/public/assets/styles/choices.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/toastify-js/src/toastify.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <link rel="stylesheet" href="styles.css">
-    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
 </head>
 <body>
-    <!-- Contenedor principal -->
-    <div class="container">
-        <!-- Barra lateral izquierda -->
-        <div class="sidebar">
-            <h2 class="sidebar-title">Cotizador APU</h2>
-            <ul class="sidebar-nav">
-                <li><a href="#" class="tab-button active" data-tab="calculadora"><i class="fas fa-calculator"></i> Calculadora APU</a></li>
-                <li><a href="#" class="tab-button" data-tab="cotizacion"><i class="fas fa-file-invoice"></i> Cotización</a></li>
-                <li><a href="#" class="tab-button" data-tab="consultar"><i class="fas fa-search"></i> Consultar Cotizaciones</a></li>
-            </ul>
-        </div>
+    <div class="container-fluid">
+        <div class="row">
+            <!-- Sidebar -->
+            <nav class="col-md-2 d-none d-md-block bg-dark sidebar">
+                <div class="sidebar-sticky">
+                    <h4 class="sidebar-title">
+                        <img src="logo.png" alt="SELCO" style="width: 120px; margin-right: 90px;">
+						
+                        
+                    </h4>
+					
+                    <ul class="nav flex-column sidebar-nav">
+                        <li class="nav-item">
+                            <a class="nav-link tab-button" href="#" data-tab="maestro-insumos" role="tab" aria-selected="false">
+                                <i class="fas fa-database"></i> Maestro de Insumos
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link tab-button active" href="#" data-tab="calculadora" role="tab" aria-selected="true">
+                                <i class="fas fa-calculator"></i> Calculadora
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link tab-button" href="#" data-tab="cotizacion" role="tab" aria-selected="false">
+                                <i class="fas fa-file-invoice"></i> Cotización
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link tab-button" href="#" data-tab="consultar" role="tab" aria-selected="false">
+                                <i class="fas fa-search"></i> Consultar Cotizaciones
+                            </a>
+                        </li>
+                    </ul>
+                    <button id="darkModeToggle" class="theme-toggle" title="Alternar modo oscuro">
+                        <i class="fas fa-moon"></i>
+                    </button>
+                </div>
+				
+            </nav>
 
-        <!-- Contenido principal -->
-        <div class="main-content">
-            <!-- Pestaña Calculadora APU -->
-            <div id="calculadora" class="tab-content active">
-                <div class="calculadora-content">
-                    <h2>Análisis de Precio Unitario (APU)</h2>
-                    <!-- Controles de archivos -->
+            <!-- Contenido -->
+            <main class="col-md-10 ms-sm-auto col-lg-10 px-md-4">
+                <!-- Maestro de Insumos -->
+                <div id="maestro-insumos" class="tab-content maestro-insumos-content">
+                    <h2>Maestro de Insumos</h2>
                     <div class="file-controls">
-                        <button onclick="descargarPlantilla()"><i class="fas fa-file-excel"></i> Plantilla Excel</button>
-                        <input type="file" id="excelFile" accept=".xlsx,.xls" onchange="leerExcel(this.files[0])">
-                        <button onclick="descargarJSON()"><i class="fas fa-file-code"></i> Guardar JSON</button>
-                        <input type="file" id="jsonFile" accept=".json" onchange="cargarJSON(this.files)">
-                        <button onclick="descargarPDFCalculadora()"><i class="fas fa-file-pdf"></i> PDF</button>
-                        <button onclick="usarEnCotizacion()"><i class="fas fa-arrow-right"></i> Usar en Cotización</button>
+                        <button class="btn btn-primary excel-download-btn" onclick="descargarPlantillaInsumos()">Descargar Plantilla Excel</button>
+                        <input type="file" id="uploadExcelInsumos" accept=".xlsx, .xls" class="form-control" onchange="leerExcelInsumos(this.files[0])">
                     </div>
-                    <!-- Margen contributivo -->
-                    <div class="result">
-                        <label for="margen_contributivo">Margen Contributivo (%):</label>
-                        <input type="number" id="margen_contributivo" value="10" min="0" max="99.99" step="0.01">
-                        <p>Precio Unitario Total: <span id="resultado">$ 0.00 COP</span></p>
-                        <button onclick="calcularAPU()">Recalcular</button>
-                    </div>
-                    <!-- Tablas de categorías -->
-                    <div class="tables">
-                        <!-- Preliminares -->
-                        <div class="table-section">
-                            <h3>Preliminares</h3>
-                            <button class="add-btn" onclick="agregarFila('Preliminares')"><i class="fas fa-plus"></i> Agregar Fila</button>
-                            <table id="tablaPreliminares">
-                                <thead>
-                                    <tr>
-                                        <th>Descripción</th>
-                                        <th>Unidad</th>
-                                        <th>Cantidad</th>
-                                        <th>Precio Unitario</th>
-                                        <th>Subtotal</th>
-                                        <th>Acción</th>
-                                    </tr>
-                                </thead>
-                                <tbody></tbody>
-                            </table>
-                            <div class="category-total">
-                                <p>Total: <span id="totalPreliminares">$ 0.00 COP</span> (<span id="porcentajePreliminares">0.00%</span>)</p>
+                    <div class="mt-4">
+                        <div class="accordion" id="insumosAccordion">
+                            <!-- Categorías -->
+                            <div class="accordion-item">
+                                <h2 class="accordion-header" id="headingInsumosPreliminares">
+                                    <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#collapseInsumosPreliminares" aria-expanded="true" aria-controls="collapseInsumosPreliminares">
+                                        Preliminares
+                                    </button>
+                                </h2>
+                                <div id="collapseInsumosPreliminares" class="accordion-collapse collapse show" aria-labelledby="headingInsumosPreliminares" data-bs-parent="#insumosAccordion">
+                                    <div class="accordion-body">
+                                        <table class="table table-bordered" id="tablaInsumosPreliminares">
+                                            <thead>
+                                                <tr>
+                                                    <th>Descripción</th>
+                                                    <th>Unidad</th>
+                                                    <th>Precio Unitario</th>
+                                                    <th>Acción</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody></tbody>
+                                        </table>
+                                        <button class="btn btn-primary add-btn" onclick="agregarFilaInsumo('Preliminares')"><i class="fas fa-plus"></i> Agregar Insumo</button>
+                                    </div>
+                                </div>
                             </div>
-                        </div>
-                        <!-- Administrativo -->
-                        <div class="table-section">
-                            <h3>Administrativo</h3>
-                            <button class="add-btn" onclick="agregarFila('Administrativo')"><i class="fas fa-plus"></i> Agregar Fila</button>
-                            <table id="tablaAdministrativo">
-                                <thead>
-                                    <tr>
-                                        <th>Descripción</th>
-                                        <th>Unidad</th>
-                                        <th>Cantidad</th>
-                                        <th>Precio Unitario</th>
-                                        <th>Subtotal</th>
-                                        <th>Acción</th>
-                                    </tr>
-                                </thead>
-                                <tbody></tbody>
-                            </table>
-                            <div class="category-total">
-                                <p>Total: <span id="totalAdministrativo">$ 0.00 COP</span> (<span id="porcentajeAdministrativo">0.00%</span>)</p>
+                            <div class="accordion-item">
+                                <h2 class="accordion-header" id="headingInsumosAdministrativo">
+                                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseInsumosAdministrativo" aria-expanded="false" aria-controls="collapseInsumosAdministrativo">
+                                        Administrativo
+                                    </button>
+                                </h2>
+                                <div id="collapseInsumosAdministrativo" class="accordion-collapse collapse" aria-labelledby="headingInsumosAdministrativo" data-bs-parent="#insumosAccordion">
+                                    <div class="accordion-body">
+                                        <table class="table table-bordered" id="tablaInsumosAdministrativo">
+                                            <thead>
+                                                <tr>
+                                                    <th>Descripción</th>
+                                                    <th>Unidad</th>
+                                                    <th>Precio Unitario</th>
+                                                    <th>Acción</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody></tbody>
+                                        </table>
+                                        <button class="btn btn-primary add-btn" onclick="agregarFilaInsumo('Administrativo')"><i class="fas fa-plus"></i> Agregar Insumo</button>
+                                    </div>
+                                </div>
                             </div>
-                        </div>
-                        <!-- Mano de Obra -->
-                        <div class="table-section">
-                            <h3>Mano de Obra</h3>
-                            <button class="add-btn" onclick="agregarFila('ManoObra')"><i class="fas fa-plus"></i> Agregar Fila</button>
-                            <table id="tablaManoObra">
-                                <thead>
-                                    <tr>
-                                        <th>Descripción</th>
-                                        <th>Unidad</th>
-                                        <th>Cantidad</th>
-                                        <th>Precio Unitario</th>
-                                        <th>Subtotal</th>
-                                        <th>Acción</th>
-                                    </tr>
-                                </thead>
-                                <tbody></tbody>
-                            </table>
-                            <div class="category-total">
-                                <p>Total: <span id="totalManoObra">$ 0.00 COP</span> (<span id="porcentajeManoObra">0.00%</span>)</p>
+                            <div class="accordion-item">
+                                <h2 class="accordion-header" id="headingInsumosManoObra">
+                                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseInsumosManoObra" aria-expanded="false" aria-controls="collapseInsumosManoObra">
+                                        Mano de Obra
+                                    </button>
+                                </h2>
+                                <div id="collapseInsumosManoObra" class="accordion-collapse collapse" aria-labelledby="headingInsumosManoObra" data-bs-parent="#insumosAccordion">
+                                    <div class="accordion-body">
+                                        <table class="table table-bordered" id="tablaInsumosManoObra">
+                                            <thead>
+                                                <tr>
+                                                    <th>Descripción</th>
+                                                    <th>Unidad</th>
+                                                    <th>Precio Unitario</th>
+                                                    <th>Acción</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody></tbody>
+                                        </table>
+                                        <button class="btn btn-primary add-btn" onclick="agregarFilaInsumo('ManoObra')"><i class="fas fa-plus"></i> Agregar Insumo</button>
+                                    </div>
+                                </div>
                             </div>
-                        </div>
-                        <!-- Materiales -->
-                        <div class="table-section">
-                            <h3>Materiales</h3>
-                            <button class="add-btn" onclick="agregarFila('Materiales')"><i class="fas fa-plus"></i> Agregar Fila</button>
-                            <table id="tablaMateriales">
-                                <thead>
-                                    <tr>
-                                        <th>Descripción</th>
-                                        <th>Unidad</th>
-                                        <th>Cantidad</th>
-                                        <th>Precio Unitario</th>
-                                        <th>Subtotal</th>
-                                        <th>Acción</th>
-                                    </tr>
-                                </thead>
-                                <tbody></tbody>
-                            </table>
-                            <div class="category-total">
-                                <p>Total: <span id="totalMateriales">$ 0.00 COP</span> (<span id="porcentajeMateriales">0.00%</span>)</p>
+                            <div class="accordion-item">
+                                <h2 class="accordion-header" id="headingInsumosMateriales">
+                                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseInsumosMateriales" aria-expanded="false" aria-controls="collapseInsumosMateriales">
+                                        Materiales
+                                    </button>
+                                </h2>
+                                <div id="collapseInsumosMateriales" class="accordion-collapse collapse" aria-labelledby="headingInsumosMateriales" data-bs-parent="#insumosAccordion">
+                                    <div class="accordion-body">
+                                        <table class="table table-bordered" id="tablaInsumosMateriales">
+                                            <thead>
+                                                <tr>
+                                                    <th>Descripción</th>
+                                                    <th>Unidad</th>
+                                                    <th>Precio Unitario</th>
+                                                    <th>Acción</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody></tbody>
+                                        </table>
+                                        <button class="btn btn-primary add-btn" onclick="agregarFilaInsumo('Materiales')"><i class="fas fa-plus"></i> Agregar Insumo</button>
+                                    </div>
+                                </div>
                             </div>
-                        </div>
-                        <!-- SST -->
-                        <div class="table-section">
-                            <h3>SST</h3>
-                            <button class="add-btn" onclick="agregarFila('SST')"><i class="fas fa-plus"></i> Agregar Fila</button>
-                            <table id="tablaSST">
-                                <thead>
-                                    <tr>
-                                        <th>Descripción</th>
-                                        <th>Unidad</th>
-                                        <th>Cantidad</th>
-                                        <th>Precio Unitario</th>
-                                        <th>Subtotal</th>
-                                        <th>Acción</th>
-                                    </tr>
-                                </thead>
-                                <tbody></tbody>
-                            </table>
-                            <div class="category-total">
-                                <p>Total: <span id="totalSST">$ 0.00 COP</span> (<span id="porcentajeSST">0.00%</span>)</p>
+                            <div class="accordion-item">
+                                <h2 class="accordion-header" id="headingInsumosSST">
+                                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseInsumosSST" aria-expanded="false" aria-controls="collapseInsumosSST">
+                                        SST
+                                    </button>
+                                </h2>
+                                <div id="collapseInsumosSST" class="accordion-collapse collapse" aria-labelledby="headingInsumosSST" data-bs-parent="#insumosAccordion">
+                                    <div class="accordion-body">
+                                        <table class="table table-bordered" id="tablaInsumosSST">
+                                            <thead>
+                                                <tr>
+                                                    <th>Descripción</th>
+                                                    <th>Unidad</th>
+                                                    <th>Precio Unitario</th>
+                                                    <th>Acción</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody></tbody>
+                                        </table>
+                                        <button class="btn btn-primary add-btn" onclick="agregarFilaInsumo('SST')"><i class="fas fa-plus"></i> Agregar Insumo</button>
+                                    </div>
+                                </div>
                             </div>
-                        </div>
-                        <!-- Logística y Transporte -->
-                        <div class="table-section">
-                            <h3>Logística y Transporte</h3>
-                            <button class="add-btn" onclick="agregarFila('LogisticaTransporte')"><i class="fas fa-plus"></i> Agregar Fila</button>
-                            <table id="tablaLogisticaTransporte">
-                                <thead>
-                                    <tr>
-                                        <th>Descripción</th>
-                                        <th>Unidad</th>
-                                        <th>Cantidad</th>
-                                        <th>Precio Unitario</th>
-                                        <th>Subtotal</th>
-                                        <th>Acción</th>
-                                    </tr>
-                                </thead>
-                                <tbody></tbody>
-                            </table>
-                            <div class="category-total">
-                                <p>Total: <span id="totalLogisticaTransporte">$ 0.00 COP</span> (<span id="porcentajeLogisticaTransporte">0.00%</span>)</p>
+                            <div class="accordion-item">
+                                <h2 class="accordion-header" id="headingInsumosLogisticaTransporte">
+                                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseInsumosLogisticaTransporte" aria-expanded="false" aria-controls="collapseInsumosLogisticaTransporte">
+                                        Logística y Transporte
+                                    </button>
+                                </h2>
+                                <div id="collapseInsumosLogisticaTransporte" class="accordion-collapse collapse" aria-labelledby="headingInsumosLogisticaTransporte" data-bs-parent="#insumosAccordion">
+                                    <div class="accordion-body">
+                                        <table class="table table-bordered" id="tablaInsumosLogisticaTransporte">
+                                            <thead>
+                                                <tr>
+                                                    <th>Descripción</th>
+                                                    <th>Unidad</th>
+                                                    <th>Precio Unitario</th>
+                                                    <th>Acción</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody></tbody>
+                                        </table>
+                                        <button class="btn btn-primary add-btn" onclick="agregarFilaInsumo('LogisticaTransporte')"><i class="fas fa-plus"></i> Agregar Insumo</button>
+                                    </div>
+                                </div>
                             </div>
-                        </div>
-                        <!-- Herramientas y Equipos -->
-                        <div class="table-section">
-                            <h3>Herramientas y Equipos</h3>
-                            <button class="add-btn" onclick="agregarFila('HerramientasEquipos')"><i class="fas fa-plus"></i> Agregar Fila</button>
-                            <table id="tablaHerramientasEquipos">
-                                <thead>
-                                    <tr>
-                                        <th>Descripción</th>
-                                        <th>Unidad</th>
-                                        <th>Cantidad</th>
-                                        <th>Precio Unitario</th>
-                                        <th>Subtotal</th>
-                                        <th>Acción</th>
-                                    </tr>
-                                </thead>
-                                <tbody></tbody>
-                            </table>
-                            <div class="category-total">
-                                <p>Total: <span id="totalHerramientasEquipos">$ 0.00 COP</span> (<span id="porcentajeHerramientasEquipos">0.00%</span>)</p>
+                            <div class="accordion-item">
+                                <h2 class="accordion-header" id="headingInsumosHerramientasEquipos">
+                                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseInsumosHerramientasEquipos" aria-expanded="false" aria-controls="collapseInsumosHerramientasEquipos">
+                                        Herramientas y Equipos
+                                    </button>
+                                </h2>
+                                <div id="collapseInsumosHerramientasEquipos" class="accordion-collapse collapse" aria-labelledby="headingInsumosHerramientasEquipos" data-bs-parent="#insumosAccordion">
+                                    <div class="accordion-body">
+                                        <table class="table table-bordered" id="tablaInsumosHerramientasEquipos">
+                                            <thead>
+                                                <tr>
+                                                    <th>Descripción</th>
+                                                    <th>Unidad</th>
+                                                    <th>Precio Unitario</th>
+                                                    <th>Acción</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody></tbody>
+                                        </table>
+                                        <button class="btn btn-primary add-btn" onclick="agregarFilaInsumo('HerramientasEquipos')"><i class="fas fa-plus"></i> Agregar Insumo</button>
+                                    </div>
+                                </div>
                             </div>
-                        </div>
-                        <!-- Viáticos -->
-                        <div class="table-section">
-                            <h3>Viáticos</h3>
-                            <button class="add-btn" onclick="agregarFila('Viaticos')"><i class="fas fa-plus"></i> Agregar Fila</button>
-                            <table id="tablaViaticos">
-                                <thead>
-                                    <tr>
-                                        <th>Descripción</th>
-                                        <th>Unidad</th>
-                                        <th>Cantidad</th>
-                                        <th>Precio Unitario</th>
-                                        <th>Subtotal</th>
-                                        <th>Acción</th>
-                                    </tr>
-                                </thead>
-                                <tbody></tbody>
-                            </table>
-                            <div class="category-total">
-                                <p>Total: <span id="totalViaticos">$ 0.00 COP</span> (<span id="porcentajeViaticos">0.00%</span>)</p>
+                            <div class="accordion-item">
+                                <h2 class="accordion-header" id="headingInsumosViaticos">
+                                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseInsumosViaticos" aria-expanded="false" aria-controls="collapseInsumosViaticos">
+                                        Viáticos
+                                    </button>
+                                </h2>
+                                <div id="collapseInsumosViaticos" class="accordion-collapse collapse" aria-labelledby="headingInsumosViaticos" data-bs-parent="#insumosAccordion">
+                                    <div class="accordion-body">
+                                        <table class="table table-bordered" id="tablaInsumosViaticos">
+                                            <thead>
+                                                <tr>
+                                                    <th>Descripción</th>
+                                                    <th>Unidad</th>
+                                                    <th>Precio Unitario</th>
+                                                    <th>Acción</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody></tbody>
+                                        </table>
+                                        <button class="btn btn-primary add-btn" onclick="agregarFilaInsumo('Viaticos')"><i class="fas fa-plus"></i> Agregar Insumo</button>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
                 </div>
-            </div>
 
-            <!-- Pestaña Cotización -->
-            <div id="cotizacion" class="tab-content">
-                <div class="cotizacion-content">
+                <!-- Calculadora -->
+                <div id="calculadora" class="tab-content calculadora-content active">
+                    <h2>Análisis de Precio Unitario (APU)</h2>
+                    <div class="file-controls">
+                        <button class="btn btn-primary excel-download-btn" onclick="descargarPlantilla()">Descargar Plantilla Excel</button>
+                        <input type="file" id="uploadExcel" accept=".xlsx, .xls" class="form-control" onchange="leerExcel(this.files[0])">
+                    </div>
+                    <div class="row">
+                        <div class="col-md-4">
+                            <label for="margen_contributivo">Margen Contributivo (%):</label>
+                            <input type="number" id="margen_contributivo" class="form-control" value="12" min="0" max="99" oninput="calcularAPU()">
+                            <span id="margenError" class="error"></span>
+                        </div>
+                        <div class="col-md-4">
+                            <h4>Precio Unitario: <span id="resultado">$ 0.00 COP</span></h4>
+                        </div>
+                        <div class="col-md-4">
+                            <button class="btn btn-success mt-3" onclick="usarEnCotizacion()">Usar en Cotización</button>
+                            <button class="btn btn-primary mt-3" onclick="descargarPDFCalculadora()">Descargar PDF</button>
+                            <button class="btn btn-secondary mt-3" onclick="descargarJSON()">Descargar JSON</button>
+                            <input type="file" id="uploadJSON" accept=".json" class="form-control mt-3" onchange="cargarJSON(this.files)">
+                        </div>
+                    </div>
+                    <div class="row mt-3">
+                        <div class="col-md-4">
+                            <select id="plantilla" class="form-control" onchange="cargarPlantilla(this.value)">
+                                <option value="">Seleccionar Plantilla</option>
+                                <option value="laminas_aluminio">Venta de Suministro (Simple)</option>
+                                <option value="estructura_metalica">Proyectos Menores a 500 M2 (Media)</option>
+                                <option value="instalacion_electrica">Proyectos Superiores a 500 M2 (Compleja)</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <button class="btn btn-primary mt-3" onclick="abrirEditorPlantillas()">Gestionar Plantillas</button>
+                        </div>
+                    </div>
+                    <div class="mt-4">
+                        <div class="accordion" id="categoriasAccordion">
+                            <!-- Categorías -->
+                            <div class="accordion-item">
+                                <h2 class="accordion-header" id="headingPreliminares">
+                                    <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#collapsePreliminares" aria-expanded="true" aria-controls="collapsePreliminares">
+                                        Preliminares (Total: <span id="totalPreliminares">$ 0.00 COP</span>, Porcentaje: <span id="porcentajePreliminares">0%</span>)
+                                    </button>
+                                </h2>
+                                <div id="collapsePreliminares" class="accordion-collapse collapse show" aria-labelledby="headingPreliminares" data-bs-parent="#categoriasAccordion">
+                                    <div class="accordion-body">
+                                        <table class="table table-bordered" id="tablaPreliminares">
+                                            <thead>
+                                                <tr>
+                                                    <th>Descripción</th>
+                                                    <th>Unidad</th>
+                                                    <th>Cantidad</th>
+                                                    <th>Precio Unitario</th>
+                                                    <th>Subtotal</th>
+                                                    <th>Acción</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody></tbody>
+                                        </table>
+                                        <button class="btn btn-primary add-btn" onclick="agregarFila('Preliminares')"><i class="fas fa-plus"></i> Agregar Fila</button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="accordion-item">
+                                <h2 class="accordion-header" id="headingAdministrativo">
+                                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseAdministrativo" aria-expanded="false" aria-controls="collapseAdministrativo">
+                                        Administrativo (Total: <span id="totalAdministrativo">$ 0.00 COP</span>, Porcentaje: <span id="porcentajeAdministrativo">0%</span>)
+                                    </button>
+                                </h2>
+                                <div id="collapseAdministrativo" class="accordion-collapse collapse" aria-labelledby="headingAdministrativo" data-bs-parent="#categoriasAccordion">
+                                    <div class="accordion-body">
+                                        <table class="table table-bordered" id="tablaAdministrativo">
+                                            <thead>
+                                                <tr>
+                                                    <th>Descripción</th>
+                                                    <th>Unidad</th>
+                                                    <th>Cantidad</th>
+                                                    <th>Precio Unitario</th>
+                                                    <th>Subtotal</th>
+                                                    <th>Acción</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody></tbody>
+                                        </table>
+                                        <button class="btn btn-primary add-btn" onclick="agregarFila('Administrativo')"><i class="fas fa-plus"></i> Agregar Fila</button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="accordion-item">
+                                <h2 class="accordion-header" id="headingManoObra">
+                                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseManoObra" aria-expanded="false" aria-controls="collapseManoObra">
+                                        Mano de Obra (Total: <span id="totalManoObra">$ 0.00 COP</span>, Porcentaje: <span id="porcentajeManoObra">0%</span>)
+                                    </button>
+                                </h2>
+                                <div id="collapseManoObra" class="accordion-collapse collapse" aria-labelledby="headingManoObra" data-bs-parent="#categoriasAccordion">
+                                    <div class="accordion-body">
+                                        <table class="table table-bordered" id="tablaManoObra">
+                                            <thead>
+                                                <tr>
+                                                    <th>Descripción</th>
+                                                    <th>Unidad</th>
+                                                    <th>Cantidad</th>
+                                                    <th>Precio Unitario</th>
+                                                    <th>Subtotal</th>
+                                                    <th>Acción</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody></tbody>
+                                        </table>
+                                        <button class="btn btn-primary add-btn" onclick="agregarFila('ManoObra')"><i class="fas fa-plus"></i> Agregar Fila</button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="accordion-item">
+                                <h2 class="accordion-header" id="headingMateriales">
+                                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseMateriales" aria-expanded="false" aria-controls="collapseMateriales">
+                                        Materiales (Total: <span id="totalMateriales">$ 0.00 COP</span>, Porcentaje: <span id="porcentajeMateriales">0%</span>)
+                                    </button>
+                                </h2>
+                                <div id="collapseMateriales" class="accordion-collapse collapse" aria-labelledby="headingMateriales" data-bs-parent="#categoriasAccordion">
+                                    <div class="accordion-body">
+                                        <table class="table table-bordered" id="tablaMateriales">
+                                            <thead>
+                                                <tr>
+                                                    <th>Descripción</th>
+                                                    <th>Unidad</th>
+                                                    <th>Cantidad</th>
+                                                    <th>Precio Unitario</th>
+                                                    <th>Subtotal</th>
+                                                    <th>Acción</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody></tbody>
+                                        </table>
+                                        <button class="btn btn-primary add-btn" onclick="agregarFila('Materiales')"><i class="fas fa-plus"></i> Agregar Fila</button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="accordion-item">
+                                <h2 class="accordion-header" id="headingSST">
+                                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseSST" aria-expanded="false" aria-controls="collapseSST">
+                                        SST (Total: <span id="totalSST">$ 0.00 COP</span>, Porcentaje: <span id="porcentajeSST">0%</span>)
+                                    </button>
+                                </h2>
+                                <div id="collapseSST" class="accordion-collapse collapse" aria-labelledby="headingSST" data-bs-parent="#categoriasAccordion">
+                                    <div class="accordion-body">
+                                        <table class="table table-bordered" id="tablaSST">
+                                            <thead>
+                                                <tr>
+                                                    <th>Descripción</th>
+                                                    <th>Unidad</th>
+                                                    <th>Cantidad</th>
+                                                    <th>Precio Unitario</th>
+                                                    <th>Subtotal</th>
+                                                    <th>Acción</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody></tbody>
+                                        </table>
+                                        <button class="btn btn-primary add-btn" onclick="agregarFila('SST')"><i class="fas fa-plus"></i> Agregar Fila</button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="accordion-item">
+                                <h2 class="accordion-header" id="headingLogisticaTransporte">
+                                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseLogisticaTransporte" aria-expanded="false" aria-controls="collapseLogisticaTransporte">
+                                        Logística y Transporte (Total: <span id="totalLogisticaTransporte">$ 0.00 COP</span>, Porcentaje: <span id="porcentajeLogisticaTransporte">0%</span>)
+                                    </button>
+                                </h2>
+                                <div id="collapseLogisticaTransporte" class="accordion-collapse collapse" aria-labelledby="headingLogisticaTransporte" data-bs-parent="#categoriasAccordion">
+                                    <div class="accordion-body">
+                                        <table class="table table-bordered" id="tablaLogisticaTransporte">
+                                            <thead>
+                                                <tr>
+                                                    <th>Descripción</th>
+                                                    <th>Unidad</th>
+                                                    <th>Cantidad</th>
+                                                    <th>Precio Unitario</th>
+                                                    <th>Subtotal</th>
+                                                    <th>Acción</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody></tbody>
+                                        </table>
+                                        <button class="btn btn-primary add-btn" onclick="agregarFila('LogisticaTransporte')"><i class="fas fa-plus"></i> Agregar Fila</button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="accordion-item">
+                                <h2 class="accordion-header" id="headingHerramientasEquipos">
+                                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseHerramientasEquipos" aria-expanded="false" aria-controls="collapseHerramientasEquipos">
+                                        Herramientas y Equipos (Total: <span id="totalHerramientasEquipos">$ 0.00 COP</span>, Porcentaje: <span id="porcentajeHerramientasEquipos">0%</span>)
+                                    </button>
+                                </h2>
+                                <div id="collapseHerramientasEquipos" class="accordion-collapse collapse" aria-labelledby="headingHerramientasEquipos" data-bs-parent="#categoriasAccordion">
+                                    <div class="accordion-body">
+                                        <table class="table table-bordered" id="tablaHerramientasEquipos">
+                                            <thead>
+                                                <tr>
+                                                    <th>Descripción</th>
+                                                    <th>Unidad</th>
+                                                    <th>Cantidad</th>
+                                                    <th>Precio Unitario</th>
+                                                    <th>Subtotal</th>
+                                                    <th>Acción</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody></tbody>
+                                        </table>
+                                        <button class="btn btn-primary add-btn" onclick="agregarFila('HerramientasEquipos')"><i class="fas fa-plus"></i> Agregar Fila</button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="accordion-item">
+                                <h2 class="accordion-header" id="headingViaticos">
+                                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseViaticos" aria-expanded="false" aria-controls="collapseViaticos">
+                                        Viáticos (Total: <span id="totalViaticos">$ 0.00 COP</span>, Porcentaje: <span id="porcentajeViaticos">0%</span>)
+                                    </button>
+                                </h2>
+                                <div id="collapseViaticos" class="accordion-collapse collapse" aria-labelledby="headingViaticos" data-bs-parent="#categoriasAccordion">
+                                    <div class="accordion-body">
+                                        <table class="table table-bordered" id="tablaViaticos">
+                                            <thead>
+                                                <tr>
+                                                    <th>Descripción</th>
+                                                    <th>Unidad</th>
+                                                    <th>Cantidad</th>
+                                                    <th>Precio Unitario</th>
+                                                    <th>Subtotal</th>
+                                                    <th>Acción</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody></tbody>
+                                        </table>
+                                        <button class="btn btn-primary add-btn" onclick="agregarFila('Viaticos')"><i class="fas fa-plus"></i> Agregar Fila</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Cotización -->
+                <div id="cotizacion" class="tab-content cotizacion-content">
                     <h2>Cotización</h2>
-                    <div class="cotizacion-form">
-                        <!-- Botón de cotización -->
-                        <button onclick="guardarCotizacion()">Descargar y Guardar Cotización</button>
-                        <!-- Información General -->
-                        <fieldset>
-                            <legend>Información General</legend>
-                            <div class="form-group">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h4>Información General</h4>
+                            <div class="mb-3">
                                 <label for="consecutivo">Consecutivo:</label>
-                                <span id="consecutivo">SEL25030001</span>
+                                <span id="consecutivo" class="form-control-static">SEL25040001</span>
                             </div>
-                            <div class="form-group">
+                            <div class="mb-3">
                                 <label for="nombreCliente">Nombre del Cliente:</label>
-                                <input type="text" id="nombreCliente" placeholder="Ingrese el nombre del cliente">
+                                <input type="text" id="nombreCliente" class="form-control" placeholder="Ingrese el nombre del cliente">
                             </div>
-                            <div class="form-group">
+                            <div class="mb-3">
                                 <label for="proyecto">Proyecto:</label>
-                                <input type="text" id="proyecto" placeholder="Ingrese el nombre del proyecto">
+                                <input type="text" id="proyecto" class="form-control" placeholder="Ingrese el nombre del proyecto">
                             </div>
-                            <div class="form-group">
-                                <label for="descripcion">Descripción del Servicio:</label>
-                                <textarea id="descripcion" placeholder="Describa el servicio"></textarea>
+                            <div class="mb-3">
+                                <label for="descripcion">Descripción:</label>
+                                <textarea id="descripcion" class="form-control" rows="4" placeholder="Describa los detalles del proyecto"></textarea>
                             </div>
-                        </fieldset>
-                        <!-- Detalles Financieros -->
-                        <fieldset>
-                            <legend>Detalles Financieros</legend>
-                            <div class="form-group">
-                                <label for="precioUnitario">Precio Unitario:</label>
-                                <input type="number" id="precioUnitario" placeholder="0.00" step="0.01">
-                                <span id="precioUnitarioError" class="error">Por favor, ingrese un valor numérico válido</span>
-                            </div>
-                            <div class="form-group">
-                                <label for="unidadMedida">Unidad de Medida:</label>
-                                <select id="unidadMedida">
-                                    <option value="M2">M2</option>
-                                    <option value="ML">ML</option>
-                                    <option value="UND">UND</option>
-                                </select>
-                            </div>
-                            <div class="form-group">
-                                <label for="cantidad">Cantidad:</label>
-                                <input type="number" id="cantidad" value="1" min="0" step="0.01">
-                                <span id="cantidadError" class="error">La cantidad no puede ser negativa</span>
-                            </div>
-                            <div class="form-group">
+                        </div>
+                        <div class="col-md-6">
+                            <h4>Detalles Financieros</h4>
+                            <div class="mb-3">
                                 <label for="moneda">Moneda:</label>
-                                <select id="moneda" onchange="actualizarTasaCambio(); toggleAIUFields(); calcularCotizacion()">
+                                <select id="moneda" class="form-control" onchange="actualizarTasaCambio(); toggleAIUFields()">
                                     <option value="COP">COP</option>
                                     <option value="USD">USD</option>
                                     <option value="EUR">EUR</option>
                                 </select>
                             </div>
-                            <div class="form-group">
-                                <label for="tasaCambio">Tasa de Cambio (a COP):</label>
-                                <input type="number" id="tasaCambio" value="1" step="0.01" min="0">
-                                <span id="tasaCambioError" class="error">La tasa de cambio debe ser mayor a 0</span>
+                            <div class="mb-3">
+                                <label for="tasaCambio">Tasa de Cambio (COP):</label>
+                                <input type="number" id="tasaCambio" class="form-control" value="1" step="0.01" oninput="calcularCotizacion()">
+                                <span id="tasaCambioError" class="error">La tasa de cambio debe ser mayor a 0.</span>
                             </div>
-                            <div class="form-group">
-                                <label for="precioUnitarioMoneda">Precio Unitario en COP:</label>
-                                <span id="precioUnitarioMoneda">$ 0.00 COP</span>
-                            </div>
-                            <div class="form-group" id="conAIUField">
+                            <div id="conAIUField" class="mb-3">
                                 <label for="conAIU">Incluir AIU:</label>
-                                <input type="checkbox" id="conAIU" onchange="toggleAIU(); calcularCotizacion()">
+                                <input type="checkbox" id="conAIU" onchange="toggleAIU()">
                             </div>
                             <div id="aiuDesglose" class="aiu-section hidden">
-                                <div class="form-group">
-                                    <label for="administrativo">Administración (%):</label>
-                                    <input type="number" id="administrativo" value="10" min="0" step="0.01">
-                                    <span id="valorAdministrativo">$ 0.00 COP</span>
+                                <div class="mb-3">
+                                    <label for="administrativo">Administrativo (%):</label>
+                                    <input type="number" id="administrativo" class="form-control" value="10" min="0" step="0.01">
                                 </div>
-                                <div class="form-group">
+                                <div class="mb-3">
                                     <label for="imprevistos">Imprevistos (%):</label>
-                                    <input type="number" id="imprevistos" value="10" min="0" step="0.01">
-                                    <span id="valorImprevistos">$ 0.00 COP</span>
+                                    <input type="number" id="imprevistos" class="form-control" value="10" min="0" step="0.01">
                                 </div>
-                                <div class="form-group">
+                                <div class="mb-3">
                                     <label for="utilidad">Utilidad (%):</label>
-                                    <input type="number" id="utilidad" value="10" min="0" step="0.01">
-                                    <span id="valorUtilidad">$ 0.00 COP</span>
-                                </div>
-                                <div class="form-group">
-                                    <label for="valorAIU">Valor Total AIU:</label>
-                                    <span id="valorAIU">$ 0.00 COP</span>
+                                    <input type="number" id="utilidad" class="form-control" value="10" min="0" step="0.01">
                                 </div>
                             </div>
-                            <div class="form-group" id="ivaField">
-                                <label for="iva">IVA (19%):</label>
-                                <span id="iva">$ 0.00 COP</span>
-                            </div>
-                            <div class="form-group">
-                                <label for="precioUnitarioCantidad">Precio Unitario x Cantidad:</label>
-                                <span id="precioUnitarioCantidad">$ 0.00 COP</span>
-                            </div>
-                        </fieldset>
-                        <!-- Condiciones de Pago -->
-                        <fieldset>
-                            <legend>Condiciones de Pago</legend>
-                            <div class="form-group">
+                        </div>
+                    </div>
+                    <h4>Ítems de Cotización</h4>
+                    <table class="table table-bordered" id="tablaItemsCotizacion">
+                        <thead>
+                            <tr>
+                                <th>Descripción</th>
+                                <th>Unidad</th>
+                                <th>Cantidad</th>
+                                <th>Precio Unitario</th>
+                                <th>Subtotal</th>
+                                <th>Acción</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                    <button class="btn btn-primary add-btn" onclick="agregarItemCotizacion()"><i class="fas fa-plus"></i> Agregar Ítem</button>
+                    <span id="cantidadError" class="error"></span>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h4>Resumen Financiero</h4>
+                            <table class="table table-bordered">
+                                <tr>
+                                    <td>Subtotal General:</td>
+                                    <td id="precioUnitarioCantidad">$ 0.00 COP</td>
+                                </tr>
+                                <tr id="valorAdministrativoRow" class="aiu-section">
+                                    <td>Administración:</td>
+                                    <td id="valorAdministrativo">$ 0.00 COP</td>
+                                </tr>
+                                <tr id="valorImprevistosRow" class="aiu-section">
+                                    <td>Imprevistos:</td>
+                                    <td id="valorImprevistos">$ 0.00 COP</td>
+                                </tr>
+                                <tr id="valorUtilidadRow" class="aiu-section">
+                                    <td>Utilidad:</td>
+                                    <td id="valorUtilidad">$ 0.00 COP</td>
+                                </tr>
+                                <tr id="valorAIURow" class="aiu-section">
+                                    <td>Total AIU:</td>
+                                    <td id="valorAIU">$ 0.00 COP</td>
+                                </tr>
+                                <tr id="ivaField">
+                                    <td>IVA (19%):</td>
+                                    <td id="iva">$ 0.00 COP</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Total:</strong></td>
+                                    <td id="precioTotal">$ 0.00 COP</td>
+                                </tr>
+                            </table>
+                        </div>
+                        <div class="col-md-6">
+                            <h4>Condiciones de Pago</h4>
+                            <div class="mb-3">
                                 <label for="formaPago">Forma de Pago:</label>
-                                <select id="formaPago">
+                                <select id="formaPago" class="form-control">
                                     <option value="Transferencia Bancaria">Transferencia Bancaria</option>
                                     <option value="Efectivo">Efectivo</option>
                                     <option value="Cheque">Cheque</option>
                                 </select>
                             </div>
-                            <div class="form-group">
+                            <div class="mb-3">
                                 <label for="porcentajeAnticipo">Porcentaje de Anticipo (%):</label>
-                                <input type="number" id="porcentajeAnticipo" value="30" min="0" max="100" step="0.01">
-                                <span id="valorAnticipo">$ 0.00 COP</span>
+                                <input type="number" id="porcentajeAnticipo" class="form-control" value="50" min="0" max="100" step="0.01">
                             </div>
-                            <div class="form-group">
-                                <label for="tiempoEntrega">Tiempo de Entrega:</label>
-                                <input type="text" id="tiempoEntrega" placeholder="Ej: 30 días hábiles">
+                            <div class="mb-3">
+                                <label for="valorAnticipo">Valor del Anticipo:</label>
+                                <span id="valorAnticipo" class="form-control-static">$ 0.00 COP</span>
                             </div>
-                            <div class="form-group">
-                                <label for="precioTotal">Precio Total:</label>
-                                <span id="precioTotal">$ 0.00 COP</span>
+                            <div class="mb-3">
+                                <label for="fechaAnticipo">Fecha del Anticipo:</label>
+                                <input type="date" id="fechaAnticipo" class="form-control" onchange="calcularFechaLlegadaMaterial()">
                             </div>
-                        </fieldset>
+                        </div>
                     </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h4>Tiempos de Entrega</h4>
+                            <div class="mb-3">
+                                <label for="importacion">Importación:</label>
+                                <select id="importacion" class="form-control" onchange="toggleTiempoImportacion()">
+                                    <option value="No">No</option>
+                                    <option value="Sí">Sí</option>
+                                </select>
+                            </div>
+                            <div id="tiempoImportacionField" class="mb-3 hidden">
+                                <label for="tiempoImportacion">Tiempo de Importación (días):</label>
+                                <input type="number" id="tiempoImportacion" class="form-control" value="0" min="0" onchange="calcularFechaLlegadaMaterial()">
+                            </div>
+                            <div class="mb-3">
+                                <label for="fechaLlegadaMaterial">Fecha de Llegada del Material:</label>
+                                <input type="date" id="fechaLlegadaMaterial" class="form-control" readonly>
+                            </div>
+                            <div class="mb-3">
+                                <label for="tiempoPlaneacion">Tiempo de Planeación (semanas):</label>
+                                <input type="number" id="tiempoPlaneacion" class="form-control" value="2" min="0" step="0.1">
+                            </div>
+                            <div class="mb-3">
+                                <label for="tiempoFabricacionDespacho">Tiempo de Fabricación y Despacho (semanas):</label>
+                                <input type="number" id="tiempoFabricacionDespacho" class="form-control" value="2" min="0" step="0.1">
+                            </div>
+                            <div class="mb-3">
+                                <label for="tiempoInstalacion">Tiempo de Instalación (meses):</label>
+                                <input type="number" id="tiempoInstalacion" class="form-control" value="0" min="0" step="0.1">
+                            </div>
+                            <div class="mb-3">
+                                <label for="fechaFinal">Fecha Final Estimada:</label>
+                                <input type="date" id="fechaFinal" class="form-control" readonly>
+                            </div>
+                        </div>
+                    </div>
+                    <button class="btn btn-success" onclick="guardarCotizacion()">Guardar Cotización</button>
                 </div>
-            </div>
 
-            <!-- Pestaña Consultar Cotizaciones -->
-            <div id="consultar" class="tab-content">
-                <div class="consultar-content">
+                <!-- Consultar Cotizaciones -->
+                <div id="consultar" class="tab-content consultar-content">
                     <h2>Consultar Cotizaciones</h2>
-                    <div class="consultar-form">
-                        <div class="form-group">
-                            <label for="buscarCliente">Buscar por Cliente o Proyecto:</label>
-                            <input type="text" id="buscarCliente" placeholder="Ingrese cliente o proyecto" oninput="filtrarCotizaciones()">
-                        </div>
-                        <div class="file-controls">
-                            <button onclick="exportarCotizaciones()">Exportar Cotizaciones</button>
-                            <input type="file" id="importarCotizaciones" accept=".json" onchange="importarCotizaciones(this.files)">
-                        </div>
-                        <table id="listaCotizaciones">
-                            <thead>
-                                <tr>
-                                    <th>Consecutivo</th>
-                                    <th>Cliente</th>
-                                    <th>Proyecto</th>
-                                    <th>Cantidad</th>
-                                    <th>Valor Total</th>
-                                    <th>Acciones</th>
-                                    <th>PDF</th>
-                                </tr>
-                            </thead>
-                            <tbody></tbody>
-                        </table>
+                    <div class="mb-3">
+                        <label for="buscarCliente">Buscar por Cliente, Proyecto o Consecutivo:</label>
+                        <input type="text" id="buscarCliente" class="form-control" oninput="filtrarCotizaciones()" placeholder="Ingrese cliente, proyecto o consecutivo">
+                    </div>
+                    <table class="table table-bordered" id="listaCotizaciones">
+                        <thead>
+                            <tr>
+                                <th>Consecutivo</th>
+                                <th>Cliente</th>
+                                <th>Proyecto</th>
+                                <th>Cantidad Total</th>
+                                <th>Valor Total</th>
+                                <th>Acciones</th>
+                                <th>PDF</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                    <button class="btn btn-primary" onclick="exportarCotizaciones()">Exportar Cotizaciones</button>
+                    <input type="file" id="importarCotizaciones" accept=".json" class="form-control mt-3" onchange="importarCotizaciones(this.files)">
+                </div>
+
+                <!-- Modal para Editor de Plantillas -->
+                <div id="modalEditorPlantillas" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 2000;">
+                    <div style="background: white; margin: 5% auto; padding: 20px; width: 80%; max-width: 800px; border-radius: 10px;">
+                        <h3>Gestionar Plantillas</h3>
+                        <h4>Plantillas Personalizadas</h4>
+                        <ul id="listaPlantillasEditor"></ul>
+                        <h4>Crear/Editar Plantilla</h4>
+                        <form id="formEditorPlantillas">
+                            <div class="mb-3">
+                                <label for="nombrePlantilla">Nombre:</label>
+                                <input type="text" id="nombrePlantilla" class="form-control" required>
+                            </div>
+                            <div class="mb-3">
+                                <label for="complejidadPlantilla">Complejidad:</label>
+                                <select id="complejidadPlantilla" class="form-control">
+                                    <option value="simple">Simple</option>
+                                    <option value="medium">Media</option>
+                                    <option value="complex">Compleja</option>
+                                </select>
+                            </div>
+                            <div id="datosPlantilla"></div>
+                            <button type="button" class="btn btn-primary" onclick="document.getElementById('datosPlantilla').appendChild(document.createElement('div')).innerHTML = `
+                                <select name='categoria_${Date.now()}'>
+                                    ${categorias.map(cat => `<option value='${cat}'>${cat}</option>`).join('')}
+                                </select>
+                                <input type='text' name='descripcion_${Date.now()}' placeholder='Descripción' required>
+                                <select name='unidad_${Date.now()}'>
+                                    <option value='M2'>M2</option>
+                                    <option value='ML'>ML</option>
+                                    <option value='UND'>UND</option>
+                                </select>
+                                <input type='number' name='cantidad_${Date.now()}' placeholder='Cantidad' min='0' step='0.01' required>
+                                <input type='number' name='precioUnitario_${Date.now()}' placeholder='Precio Unitario' min='0' step='0.01' required>
+                                <button type='button' onclick='this.parentElement.remove()'>Eliminar</button>
+                            `">Añadir Ítem</button>
+                            <button type="submit" class="btn btn-success">Guardar Plantilla</button>
+                            <button type="button" class="btn btn-secondary" onclick="cerrarEditorPlantillas()">Cerrar</button>
+                        </form>
+						
                     </div>
                 </div>
-            </div>
+            </main>
+			
         </div>
     </div>
 
-    <!-- Librerías externas -->
-    <script defer src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-    <script defer src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <script defer src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.3/jspdf.plugin.autotable.min.js"></script>
-    <script defer src="script.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/choices.js/public/assets/scripts/choices.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/toastify-js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.3/jspdf.plugin.autotable.min.js"></script>
+    <script src="main.js"></script>
+    <script src="maestroInsumos.js"></script>
+    <script src="calculadora.js"></script>
+    <script src="cotizacion.js"></script>
+    <script src="consultar.js"></script>
+    <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'9381e3a2aa13ae89',t:'MTc0NTk2MjEwNy4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script>
 </body>
 </html>

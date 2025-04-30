@@ -1,576 +1,524 @@
-/* Estilos generales para la aplicación Calculadora APU */
 * {
-    box-sizing: border-box; /* Asegura que padding y border no aumenten el tamaño total */
+    box-sizing: border-box;
+}
+
+:root {
+    --primary: #1E3A8A; /* Azul marino profundo */
+    --secondary: #64748B; /* Gris azulado suave */
+    --success: #166534; /* Verde bosque oscuro */
+    --danger: #B91C1C; /* Rojo profundo */
+    --accent: #F59E0B; /* Amarillo ámbar cálido */
+    --bg-light: #F8FAFC; /* Blanco azulado claro */
+    --text-dark: #111827; /* Gris oscuro casi negro */
+    --sidebar-bg: #172554; /* Azul oscuro intenso */
+    --sidebar-text: #F1F5F9; /* Blanco grisáceo */
+    --table-header-bg: #E2E8F0; /* Gris azulado claro */
+    --border-color: #CBD5E1; /* Gris claro azulado */
 }
 
 body {
-    font-family: 'Roboto', sans-serif; /* Fuente profesional y moderna */
+    font-family: 'Inter', Arial, sans-serif;
+    background-color: var(--bg-light);
+    color: var(--text-dark);
     margin: 0;
     padding: 0;
-    background-color: #F5F7FA; /* Fondo gris claro para modo claro */
-    color: #2C3E50; /* Texto oscuro para contraste */
+    font-size: 16px;
+    line-height: 1.6;
+    transition: background-color 0.3s, color 0.3s;
 }
 
-/* Contenedor principal que organiza la barra lateral y el contenido */
+body.dark-theme {
+    --bg-light: #0F172A; /* Gris oscuro azulado */
+    --text-dark: #E2E8F0; /* Gris claro */
+    --sidebar-bg: #0B1233; /* Azul casi negro */
+    --table-header-bg: #1E293B; /* Gris azulado oscuro */
+    --border-color: #475569; /* Gris medio */
+    background-color: var(--bg-light);
+    color: var(--text-dark);
+}
+
 .container {
     display: flex;
-    min-height: 100vh; /* Ocupa toda la altura de la ventana */
-    flex-wrap: nowrap; /* Evita envoltura en escritorio */
-    min-width: 200px; /* Evita colapso en pantallas estrechas */
-}
-
-/* Estilos para la barra lateral */
-.sidebar {
-    width: 200px; /* Ancho fijo para escritorio */
-    background-color: #2C3E50; /* Azul oscuro para un diseño sobrio */
-    color: #FFFFFF; /* Texto blanco para contraste */
+    min-height: 100vh;
+    max-width: 1600px;
+    margin: 0 auto;
     padding: 20px;
-    position: fixed; /* Fija en escritorio */
-    top: 0;
-    left: 0;
-    height: 100vh; /* Cubre toda la altura */
-    overflow-y: auto; /* Scroll si el contenido excede */
-    z-index: 1000; /* Nivel intermedio para evitar superposición indebida */
-    display: block; /* Asegura visibilidad */
-    visibility: visible; /* Evita que esté oculta */
-    border: 1px solid #FFFFFF; /* Borde temporal para depurar visibilidad */
 }
 
-/* Título de la barra lateral */
+.sidebar {
+    width: 250px;
+    background-color: var(--sidebar-bg);
+    color: var(--sidebar-text);
+    padding: 20px;
+    transition: transform 0.3s ease;
+    position: fixed;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    transform: translateX(0);
+    z-index: 1000;
+    box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1);
+}
+
+.sidebar.active {
+    transform: translateX(-250px);
+}
+
 .sidebar-title {
-    font-size: 1.4em;
-    margin: 0 0 20px;
-    text-align: center; /* Centrado para estética */
+    font-size: 1.5rem;
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 15px 20px;
+    font-weight: 600;
 }
 
-/* Navegación en la barra lateral */
 .sidebar-nav {
     list-style: none;
     padding: 0;
+    flex-grow: 1;
 }
 
-/* Elementos de la lista de navegación */
 .sidebar-nav li {
     margin-bottom: 10px;
 }
 
-/* Enlaces de navegación */
 .sidebar-nav a {
+    color: var(--sidebar-text);
+    text-decoration: none;
     display: flex;
     align-items: center;
-    padding: 10px;
-    color: #FFFFFF;
-    text-decoration: none;
-    border-radius: 4px;
-    font-size: 0.9em;
-    transition: background-color 0.3s; /* Transición suave al interactuar */
-    cursor: pointer;
+    gap: 10px;
+    padding: 12px;
+    border-radius: 8px;
+    transition: background-color 0.2s;
 }
 
-/* Íconos en los enlaces */
-.sidebar-nav a i {
-    margin-right: 8px; /* Espacio entre ícono y texto */
-}
-
-/* Efecto hover en enlaces */
-.sidebar-nav a:hover {
-    background-color: #34495E; /* Tono más claro al pasar el ratón */
-}
-
-/* Enlace activo */
+.sidebar-nav a:hover,
 .sidebar-nav a.active {
-    background-color: #2196F3; /* Azul profesional para pestaña seleccionada */
+    background-color: var(--primary);
+    color: var(--sidebar-text);
 }
 
-/* Contenido principal */
 .main-content {
-    flex: 1; /* Ocupa el espacio restante */
+    margin-left: 270px;
     padding: 20px;
-    margin-left: 200px; /* Desplaza para dejar espacio a la barra lateral */
-    background-color: #FFFFFF; /* Fondo blanco para el contenido */
-    min-height: 100vh; /* Cubre toda la altura */
-    z-index: 500; /* Debajo de la barra en escritorio */
+    flex-grow: 1;
+    width: calc(100% - 270px);
+    max-width: 1400px;
+    margin-right: auto;
 }
 
-/* Pestañas de contenido */
 .tab-content {
-    display: none; /* Oculta por defecto */
+    display: none;
+    transition: opacity 0.3s;
 }
 
-/* Pestaña activa */
 .tab-content.active {
-    display: block; /* Muestra la pestaña seleccionada */
+    display: block;
+    opacity: 1;
 }
 
-/* Contenido de la Calculadora APU */
-.calculadora-content {
-    margin-top: 20px; /* Espacio superior */
+.tab-content:not(.active) {
+    opacity: 0;
 }
 
-/* Título de la Calculadora APU */
-.calculadora-content h2 {
-    font-size: 1.8em;
-    margin-bottom: 15px;
+.sidebar-toggle {
+    display: none;
+    position: fixed;
+    top: 20px;
+    left: 20px;
+    background-color: var(--primary);
+    color: white;
+    border: none;
+    padding: 10px;
+    border-radius: 5px;
+    cursor: pointer;
+    z-index: 1100;
 }
 
-/* Controles de archivos (Excel, JSON, PDF) */
+.theme-toggle {
+    background-color: transparent;
+    border: none;
+    color: var(--sidebar-text);
+    font-size: 1.2rem;
+    cursor: pointer;
+    align-self: flex-end;
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color 0.2s;
+}
+
+.theme-toggle:hover {
+    background-color: var(--secondary);
+}
+
+.calculadora-content,
+.cotizacion-content,
+.consultar-content,
+.maestro-insumos-content {
+    background-color: #FFFFFF;
+    padding: 20px;
+    border-radius: 10px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+    max-width: 100%;
+}
+
+body.dark-theme .calculadora-content,
+body.dark-theme .cotizacion-content,
+body.dark-theme .consultar-content,
+body.dark-theme .maestro-insumos-content {
+    background-color: #1E293B;
+    box-shadow: 0 2px 5px rgba(255, 255, 255, 0.05);
+}
+
+h2 {
+    font-size: 2rem;
+    margin-bottom: 20px;
+    font-weight: 700;
+    color: var(--primary);
+}
+
 .file-controls {
     display: flex;
     gap: 10px;
+    flex-wrap: wrap;
     margin-bottom: 20px;
-    flex-wrap: wrap; /* Envuelve en pantallas pequeñas */
 }
 
-/* Botones e inputs de controles de archivos */
-.file-controls button, .file-controls input {
-    padding: 8px 12px;
-    border: none;
-    border-radius: 4px;
-    font-size: 0.9em;
-}
-
-/* Botones de controles de archivos */
-.file-controls button {
-    background-color: #2196F3; /* Azul profesional */
-    color: #FFFFFF;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    gap: 5px;
-}
-
-/* Hover en botones de controles */
-.file-controls button:hover {
-    background-color: #1976D2; /* Tono más oscuro */
-}
-
-/* Input de archivo */
+.file-controls button,
+.file-controls select,
 .file-controls input[type="file"] {
-    border: 1px solid #E0E0E0;
+    padding: 8px 12px;
+    border-radius: 5px;
+    border: 1px solid var(--border-color);
     background-color: #FFFFFF;
-    padding: 7px;
+    cursor: pointer;
+    transition: transform 0.2s, background-color 0.2s, color 0.2s;
 }
 
-/* Contenedor de tablas */
-.tables {
-    display: flex;
-    flex-direction: column;
-    gap: 20px;
-    margin-bottom: 20px;
+.file-controls button:hover {
+    background-color: var(--primary);
+    color: white;
+    border-color: var(--primary);
+    transform: translateY(-2px);
 }
 
-/* Sección de cada tabla */
-.table-section {
-    background-color: #FFFFFF;
+.excel-download-btn {
+    background-color: var(--accent);
+    color: #111827; /* Texto oscuro para contraste */
+    border: none;
+    padding: 8px 16px;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: transform 0.2s, background-color 0.2s;
+    font-weight: 500;
+}
+
+.excel-download-btn:hover {
+    background-color: #D97706; /* Ámbar más oscuro */
+    transform: translateY(-2px);
+}
+
+body.dark-theme .excel-download-btn {
+    color: #F1F5F9; /* Texto claro en modo oscuro */
+}
+
+body.dark-theme .excel-download-btn:hover {
+    background-color: #D97706;
+}
+
+.result12 {
+    margin: 20px 0;
     padding: 15px;
-    border-radius: 8px;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); /* Sombra sutil */
+    background-color: #FFFFFF;
+    border-radius: 5px;
+    border: 1px solid var(--border-color);
 }
 
-/* Título de cada sección de tabla */
-.table-section h3 {
-    font-size: 1.2em;
-    margin-bottom: 10px;
+.result12 label {
+    margin-right: 10px;
+    color: var(--text-dark);
 }
 
-/* Botón para agregar filas */
+.result12 input {
+    width: 100px;
+    padding: 5px;
+    margin-right: 10px;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+}
+
+.result12 p {
+    font-size: 1.2rem;
+    font-weight: 500;
+    color: var(--primary);
+}
+
+.error {
+    color: var(--danger);
+    font-size: 0.9rem;
+    margin-top: 5px;
+    display: none;
+    background-color: rgba(185, 28, 28, 0.1);
+    padding: 8px;
+    border-radius: 4px;
+}
+
+.error.active {
+    display: block;
+}
+
+.accordion-button {
+    background-color: var(--table-header-bg);
+    color: var(--text-dark);
+    font-weight: 500;
+}
+
+.accordion-button:not(.collapsed) {
+    background-color: var(--primary);
+    color: white;
+}
+
+.accordion-body {
+    padding: 15px;
+    background-color: #FFFFFF;
+}
+
+body.dark-theme .accordion-body {
+    background-color: #1E293B;
+}
+
 .add-btn {
-    background-color: #4CAF50; /* Verde para acción positiva */
-    color: #FFFFFF;
+    background-color: var(--success);
+    color: white;
     border: none;
     padding: 8px 12px;
-    border-radius: 4px;
+    border-radius: 5px;
     cursor: pointer;
-    font-size: 0.85em;
+    margin-bottom: 10px;
     display: flex;
     align-items: center;
     gap: 5px;
-    margin-bottom: 10px;
+    transition: transform 0.2s, background-color 0.2s;
 }
 
-/* Hover en botón de agregar */
 .add-btn:hover {
-    background-color: #388E3C; /* Verde más oscuro */
+    background-color: #14532D;
+    transform: translateY(-2px);
 }
 
-/* Estilos de tablas */
 table {
     width: 100%;
     border-collapse: collapse;
-    margin-bottom: 10px;
-}
-
-/* Celdas de tabla */
-th, td {
-    padding: 10px;
-    text-align: left;
-    border-bottom: 1px solid #E0E0E0; /* Borde claro */
-}
-
-/* Encabezados de tabla */
-th {
-    background-color: #2C3E50; /* Azul oscuro */
-    color: #FFFFFF;
-    font-weight: 500;
-}
-
-/* Inputs y selects en celdas */
-td input, td select {
-    width: 100%;
-    padding: 8px;
-    border: 1px solid #E0E0E0;
-    border-radius: 4px;
-    box-sizing: border-box;
-    font-size: 0.9em;
-}
-
-/* Filas alternadas */
-tr:nth-child(even) {
-    background-color: #F9FAFB; /* Gris claro para contraste */
-}
-
-/* Botón de eliminar */
-.delete-btn {
-    background-color: #E57373; /* Rojo para acción destructiva */
-    color: #FFFFFF;
-    border: none;
-    padding: 8px;
-    border-radius: 4px;
-    cursor: pointer;
-}
-
-/* Hover en botón de eliminar */
-.delete-btn:hover {
-    background-color: #D32F2F; /* Rojo más oscuro */
-}
-
-/* Totales por categoría */
-.category-total {
-    display: flex;
-    justify-content: flex-start;
-    margin-top: 10px;
-    font-size: 0.95em;
-}
-
-/* Sección de resultados */
-.result {
-    margin: 20px 0;
-    padding: 15px;
-    background-color: #E8F5E9; /* Verde claro para destacar */
-    border-radius: 8px;
-    display: flex;
-    align-items: center;
-    gap: 15px;
-}
-
-/* Etiquetas en resultados */
-.result label {
-    font-weight: 500;
-}
-
-/* Inputs en resultados */
-.result input {
-    width: 100px;
-    padding: 8px;
-    border: 1px solid #E0E0E0;
-    border-radius: 4px;
-}
-
-/* Texto de resultados */
-.result p {
-    font-size: 1.2em;
-    color: #4CAF50; /* Verde para valores */
-}
-
-/* Botón en resultados */
-.result button {
-    background-color: #2196F3;
-    color: #FFFFFF;
-    border: none;
-    padding: 8px 12px;
-    border-radius: 4px;
-    cursor: pointer;
-}
-
-/* Contenido de la pestaña Cotización */
-.cotizacion-content {
-    max-width: 600px;
-    margin: 0 auto; /* Centrado */
-}
-
-/* Formulario de cotización */
-.cotizacion-form {
-    display: grid;
-    gap: 20px;
-}
-
-/* Título de cotización */
-.cotizacion-form h2 {
-    font-size: 1.8em;
     margin-bottom: 20px;
-    text-align: center;
+    max-width: 100%;
+    overflow-x: auto;
+    display: block;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
 }
 
-/* Botón principal de cotización */
-.cotizacion-form button {
-    background-color: #2196F3;
-    color: #FFFFFF;
-    border: none;
-    padding: 10px 20px;
-    border-radius: 4px;
-    cursor: pointer;
-    font-size: 0.95em;
-    margin-bottom: 20px;
-}
-
-/* Hover en botón de cotización */
-.cotizacion-form button:hover {
-    background-color: #1976D2;
-}
-
-/* Fieldsets en formulario */
-.cotizacion-form fieldset {
-    border: 1px solid #E0E0E0;
-    border-radius: 8px;
-    padding: 15px;
-    background-color: #F9FAFB; /* Fondo claro */
-}
-
-/* Leyendas de fieldsets */
-.cotizacion-form legend {
-    font-weight: 500;
-    font-size: 1.1em;
-    padding: 0 10px;
-}
-
-/* Grupos de formulario */
-.form-group {
-    display: grid;
-    grid-template-columns: 1fr 2fr;
-    align-items: center;
-    gap: 10px;
-    margin-bottom: 10px;
-}
-
-/* Etiquetas de formulario */
-.form-group label {
-    font-weight: 500;
-    font-size: 0.95em;
-}
-
-/* Inputs, selects y textareas */
-.form-group input, .form-group select, .form-group textarea {
-    padding: 8px;
-    border: 1px solid #E0E0E0;
-    border-radius: 4px;
-    font-size: 0.95em;
-    width: 100%;
-    box-sizing: border-box;
-}
-
-/* Textarea redimensionable */
-.form-group textarea {
-    resize: vertical;
-    min-height: 80px;
-}
-
-/* Spans en formulario */
-.form-group span {
-    font-size: 0.95em;
-    color: #2C3E50;
-}
-
-/* Mensajes de error */
-.error {
-    color: #E57373;
-    font-size: 0.85em;
-    display: none;
-    grid-column: 2 / 3;
-}
-
-/* Sección AIU */
-.aiu-section {
-    display: grid;
-    gap: 10px;
-    padding: 10px;
-    background-color: #FFFFFF;
-    border-radius: 4px;
-    margin-top: 10px;
-}
-
-/* Elementos ocultos */
-.hidden {
-    display: none;
-}
-
-/* Contenido de Consultar Cotizaciones */
-.consultar-content {
-    max-width: 800px;
-    margin: 0 auto;
-}
-
-/* Título de Consultar Cotizaciones */
-.consultar-content h2 {
-    font-size: 1.8em;
-    margin-bottom: 20px;
-}
-
-/* Formulario de consulta */
-.consultar-form {
-    display: grid;
-    gap: 20px;
-}
-
-/* Tabla de cotizaciones */
-#listaCotizaciones {
-    width: 100%;
-    border-collapse: collapse;
-    margin-top: 20px;
-}
-
-/* Celdas de la tabla de cotizaciones */
-#listaCotizaciones th, #listaCotizaciones td {
-    padding: 8px;
-    border: 1px solid #E0E0E0;
-    text-align: left;
-    font-size: 0.9em;
-}
-
-/* Encabezados de la tabla */
-#listaCotizaciones th {
-    background-color: #2C3E50;
-    color: #FFFFFF;
-    font-weight: 500;
-    white-space: nowrap;
-}
-
-/* Celdas de datos */
-#listaCotizaciones td {
-    white-space: nowrap;
-}
-
-/* Celdas con texto largo */
-#listaCotizaciones td:nth-child(2), #listaCotizaciones td:nth-child(3) {
-    white-space: normal;
-}
-
-/* Filas alternadas */
-#listaCotizaciones tr:nth-child(even) {
+table tr:nth-child(even) {
     background-color: #F9FAFB;
 }
 
-/* Botones en la tabla */
-#listaCotizaciones button {
-    background-color: #2196F3;
-    color: #FFFFFF;
-    border: none;
-    padding: 6px 10px;
+body.dark-theme table tr:nth-child(even) {
+    background-color: #1E293B;
+}
+
+table th,
+table td {
+    padding: 12px;
+    border: 1px solid var(--border-color);
+    text-align: left;
+}
+
+table th {
+    background-color: var(--table-header-bg);
+    font-weight: 500;
+    color: var(--text-dark);
+}
+
+table input,
+table select {
+    width: 100%;
+    padding: 5px;
+    border: 1px solid var(--border-color);
     border-radius: 4px;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+table input:focus,
+table select:focus {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 2px rgba(30, 58, 138, 0.2);
+}
+
+.delete-btn {
+    background-color: var(--danger);
+    color: white;
+    border: none;
+    padding: 6px 12px;
+    border-radius: 5px;
     cursor: pointer;
-    font-size: 0.85em;
-    margin: 0 3px;
+    transition: transform 0.2s, background-color 0.2s;
 }
 
-/* Hover en botones */
-#listaCotizaciones button:hover {
-    background-color: #1976D2;
+.delete-btn:hover {
+    background-color: #991B1B;
+    transform: translateY(-2px);
 }
 
-/* Botón de eliminar */
-#listaCotizaciones .delete-btn {
-    background-color: #E57373;
+.category-total {
+    font-weight: 500;
+    margin-top: 10px;
+    color: var(--primary);
 }
 
-/* Hover en botón de eliminar */
-#listaCotizaciones .delete-btn:hover {
-    background-color: #D32F2F;
+.cotizacion-form fieldset {
+    border: 1px solid var(--border-color);
+    padding: 15px;
+    margin-bottom: 20px;
+    border-radius: 5px;
 }
 
-/* Botón de PDF */
-#listaCotizaciones .pdf-btn {
-    background-color: #4CAF50;
+.cotizacion-form legend {
+    font-weight: 500;
+    padding: 0 10px;
+    color: var(--text-dark);
 }
 
-/* Hover en botón de PDF */
-#listaCotizaciones .pdf-btn:hover {
-    background-color: #388E3C;
+.form-group {
+    margin-bottom: 20px;
 }
 
-/* Responsividad para pantallas menores a 768px */
+.form-group label {
+    display: block;
+    margin-bottom: 5px;
+    color: var(--text-dark);
+}
+
+.form-group input,
+.form-group select,
+.form-group textarea {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.form-group input:focus,
+.form-group select:focus,
+.form-group textarea:focus {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 2px rgba(30, 58, 138, 0.2);
+}
+
+.form-group textarea {
+    resize: vertical;
+    min-height: 100px;
+}
+
+.aiu-section.hidden {
+    display: none;
+}
+
+.consultar-form table {
+    table-layout: fixed;
+}
+
+.consultar-form th,
+.consultar-form td {
+    word-wrap: break-word;
+}
+
+.action-btn,
+.pdf-btn {
+    background-color: var(--primary);
+    color: white;
+    border: none;
+    padding: 5px 10px;
+    border-radius: 3px;
+    cursor: pointer;
+    margin-right: 5px;
+    font-size: 0.9rem;
+    transition: transform 0.2s, background-color 0.2s;
+}
+
+.action-btn:hover,
+.pdf-btn:hover {
+    background-color: #1E40AF;
+    transform: translateY(-2px);
+}
+
+.consultar-form td:last-child {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+}
+
+#listaCotizaciones tbody:empty::before {
+    content: "Aún no hay cotizaciones. ¡Crea una nueva!";
+    display: block;
+    text-align: center;
+    padding: 20px;
+    background-color: #F8FAFC;
+    border-radius: 8px;
+    font-style: italic;
+    color: var(--secondary);
+}
+
+body.dark-theme #listaCotizaciones tbody:empty::before {
+    background-color: #1E293B;
+}
+
 @media (max-width: 768px) {
-    .container {
-        flex-direction: column; /* Apila elementos verticalmente */
-        flex-wrap: wrap; /* Permite envoltura */
+    .sidebar {
+        transform: translateX(-250px);
     }
 
-    .sidebar {
-        position: relative; /* No fija en móvil */
-        width: 100%; /* Ocupa todo el ancho */
-        height: auto; /* Altura automática */
-        padding: 10px;
-        border: 1px solid #FFFFFF; /* Borde temporal para depurar */
+    .sidebar.active {
+        transform: translateX(0);
     }
 
     .main-content {
-        margin-left: 0; /* Sin desplazamiento lateral */
-        padding: 15px;
-        z-index: 100; /* Debajo de la barra en móvil */
-    }
-
-    .sidebar-title {
-        font-size: 1.2em;
-    }
-
-    .sidebar-nav {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 10px;
-    }
-
-    .sidebar-nav a {
-        font-size: 0.85em;
-        padding: 8px;
-    }
-
-    .cotizacion-content, .consultar-content {
-        max-width: 100%;
-    }
-
-    .form-group {
-        grid-template-columns: 1fr; /* Una columna en móvil */
-    }
-
-    .form-group label {
-        margin-bottom: 5px;
-    }
-
-    .error {
-        grid-column: 1 / 2;
-    }
-}
-
-/* Responsividad para pantallas menores a 480px */
-@media (max-width: 480px) {
-    .file-controls {
-        flex-direction: column; /* Apila botones */
-    }
-
-    .file-controls button, .file-controls input {
+        margin-left: 0;
         width: 100%;
     }
 
-    #listaCotizaciones th, #listaCotizaciones td {
-        font-size: 0.8em;
-        padding: 6px;
+    .sidebar-toggle {
+        display: block;
     }
 
-    #listaCotizaciones button {
-        font-size: 0.8em;
-        padding: 5px 8px;
+    .file-controls {
+        flex-direction: column;
+    }
+
+    table {
+        display: block;
+        overflow-x: auto;
     }
 }
 
-/* Transiciones suaves para redimensionamiento */
-.sidebar, .main-content {
-    transition: all 0.3s ease; /* Suaviza cambios de diseño */
+@media (min-width: 1200px) {
+    .main-content {
+        padding: 30px;
+    }
+
+    .calculadora-content,
+    .cotizacion-content,
+    .consultar-content,
+    .maestro-insumos-content {
+        padding: 30px;
+    }
+
+    h2 {
+        font-size: 2.2rem;
+    }
 }
