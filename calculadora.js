@@ -253,39 +253,100 @@ function usarEnCotizacion() {
 function descargarPDFCalculadora() {
     try {
         const { jsPDF } = window.jspdf;
-        const doc = new jsPDF();
-        doc.setFontSize(16);
-        doc.text('Análisis de Precio Unitario (APU)', 10, 10);
-        let y = 20;
-        categorias.forEach(categoria => {
+        const doc = new jsPDF({
+            orientation: 'portrait',
+            unit: 'mm',
+            format: 'a4'
+        });
+
+        // Constantes para el diseño
+        const pageWidth = doc.internal.pageSize.getWidth();
+        const pageHeight = doc.internal.pageSize.getHeight();
+        const margin = 10;
+        const lineHeight = 7;
+        let y = margin;
+
+        // Encabezado
+        doc.setFontSize(18);
+        doc.setFont("helvetica", "bold");
+        doc.text("SELCO Materiales Compuestos", pageWidth / 2, y, { align: "center" });
+        y += lineHeight;
+
+        doc.setFontSize(14);
+        doc.setFont("helvetica", "normal");
+        doc.text("Análisis de Precio Unitario (APU)", pageWidth / 2, y, { align: "center" });
+        y += lineHeight;
+
+        // Fecha
+        const today = new Date().toISOString().split('T')[0];
+        doc.setFontSize(10);
+        doc.text(`Fecha: ${today}`, pageWidth - margin, y, { align: "right" });
+        y += lineHeight * 2;
+
+        // Tablas para cada categoría
+        categorias.forEach((categoria, index) => {
             const tabla = document.getElementById(`tabla${categoria}`);
             const filas = tabla.getElementsByTagName('tbody')[0].rows;
             if (filas.length > 0) {
+                // Título de la categoría
                 doc.setFontSize(12);
-                doc.text(categoria, 10, y);
-                y += 10;
-                const data = [];
-                for (let fila of filas) {
-                    data.push([
-                        fila.cells[0].querySelector('input').value,
-                        fila.cells[1].querySelector('select').value,
-                        fila.cells[2].querySelector('input').value,
-                        fila.cells[3].querySelector('input').value,
-                        fila.cells[4].textContent
-                    ]);
-                }
+                doc.setFont("helvetica", "bold");
+                doc.text(categoria, margin, y);
+                y += lineHeight;
+
+                // Tabla
+                const data = Array.from(filas).map(fila => [
+                    fila.cells[0].querySelector('input').value,
+                    fila.cells[1].querySelector('select').value,
+                    fila.cells[2].querySelector('input').value,
+                    formatCurrency(parseFloat(fila.cells[3].querySelector('input').value) || 0, 'COP'),
+                    fila.cells[4].textContent
+                ]);
+
                 doc.autoTable({
                     head: [['Descripción', 'Unidad', 'Cantidad', 'Precio Unitario', 'Subtotal']],
                     body: data,
-                    startY: y
+                    startY: y,
+                    margin: { left: margin, right: margin },
+                    styles: { fontSize: 10, cellPadding: 2 },
+                    headStyles: { fillColor: [30, 58, 138], textColor: [255, 255, 255] },
+                    alternateRowStyles: { fillColor: [240, 240, 240] },
+                    columnStyles: {
+                        0: { cellWidth: 60 },
+                        1: { cellWidth: 20 },
+                        2: { cellWidth: 20 },
+                        3: { cellWidth: 30 },
+                        4: { cellWidth: 30 }
+                    }
                 });
-                y = doc.lastAutoTable.finalY + 10;
-                doc.text(`Total ${categoria}: ${document.getElementById(`total${categoria}`).textContent}`, 10, y);
-                y += 10;
+
+                y = doc.lastAutoTable.finalY + 5;
+                doc.setFontSize(10);
+                doc.text(`Total ${categoria}: ${document.getElementById(`total${categoria}`).textContent}`, margin, y);
+                y += lineHeight;
+
+                // Agregar salto de página si el contenido excede la altura de la página
+                if (y > pageHeight - 40 && index < categorias.length - 1) {
+                    doc.addPage();
+                    y = margin;
+                }
             }
         });
-        const precioUnitario = document.getElementById('resultado').textContent;
-        doc.text(`Precio Unitario Total: ${precioUnitario}`, 10, y);
+
+        // Precio final
+        y += lineHeight;
+        doc.setFontSize(12);
+        doc.setFont("helvetica", "bold");
+        doc.text(`Precio Unitario Total: ${document.getElementById('resultado').textContent}`, margin, y);
+
+        // Pie de página con números de página
+        const pageCount = doc.internal.getNumberOfPages();
+        for (let i = 1; i <= pageCount; i++) {
+            doc.setPage(i);
+            doc.setFontSize(8);
+            doc.text(`Página ${i} de ${pageCount}`, pageWidth - margin, pageHeight - margin, { align: "right" });
+        }
+
         doc.save('apu_calculadora.pdf');
     } catch (error) {
         console.error('Error al generar PDF:', error);
