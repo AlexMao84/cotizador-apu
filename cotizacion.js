@@ -1,3 +1,5 @@
+/* cotizacion.js - Maneja el guardado de cotizaciones con Supabase */
+
 function agregarItemCotizacion() {
     try {
         const tabla = document.getElementById('tablaItemsCotizacion').getElementsByTagName('tbody')[0];
@@ -188,13 +190,22 @@ function calcularFechaFinal() {
     }
 }
 
-function actualizarConsecutivo() {
+async function actualizarConsecutivo() {
     try {
-        const cotizaciones = JSON.parse(localStorage.getItem('cotizaciones') || '[]');
-        const ultimoConsecutivo = cotizaciones.reduce((max, cot) => {
-            const num = parseInt(cot.consecutivo.replace('SEL', '')) || 0;
-            return Math.max(max, num);
-        }, 25040000);
+        const { data: cotizaciones, error } = await supabase
+            .from('cotizaciones')
+            .select('consecutivo')
+            .order('consecutivo', { ascending: false })
+            .limit(1);
+
+        if (error) throw new Error('Error al obtener el último consecutivo: ' + error.message);
+
+        let ultimoConsecutivo = 25040000;
+        if (cotizaciones && cotizaciones.length > 0) {
+            const ultimo = cotizaciones[0].consecutivo;
+            ultimoConsecutivo = parseInt(ultimo.replace('SEL', '')) || ultimoConsecutivo;
+        }
+
         const nuevoConsecutivo = `SEL${ultimoConsecutivo + 1}`;
         document.getElementById('consecutivo').textContent = nuevoConsecutivo;
         return nuevoConsecutivo;
@@ -205,10 +216,71 @@ function actualizarConsecutivo() {
     }
 }
 
-// Función para guardar una cotización en Supabase
-async function guardarCotizacion(cotizacion) {
+async function guardarCotizacion() {
     try {
-        const { items, ...cotData } = cotizacion;
+        const consecutivo = await actualizarConsecutivo();
+        const nombreCliente = document.getElementById('nombreCliente').value || 'Cliente Desconocido';
+        const proyecto = document.getElementById('proyecto').value || 'Proyecto Sin Nombre';
+        const descripcion = document.getElementById('descripcion').value || '';
+        const moneda = document.getElementById('moneda').value;
+        const tasaCambio = parseFloat(document.getElementById('tasaCambio').value) || 1;
+        const conAIU = document.getElementById('conAIU').checked;
+        const administrativo = parseFloat(document.getElementById('administrativo').value) || 0;
+        const imprevistos = parseFloat(document.getElementById('imprevistos').value) || 0;
+        const utilidad = parseFloat(document.getElementById('utilidad').value) || 0;
+        const formaPago = document.getElementById('formaPago').value;
+        const porcentajeAnticipo = parseFloat(document.getElementById('porcentajeAnticipo').value) || 0;
+        const fechaAnticipo = document.getElementById('fechaAnticipo').value || '';
+        const importacion = document.getElementById('importacion').value === 'Sí';
+        const tiempoImportacion = parseInt(document.getElementById('tiempoImportacion').value) || 0;
+        const fechaLlegadaMaterial = document.getElementById('fechaLlegadaMaterial').value || '';
+        const tiempoPlaneacion = parseFloat(document.getElementById('tiempoPlaneacion').value) || 0;
+        const tiempoFabricacionDespacho = parseFloat(document.getElementById('tiempoFabricacionDespacho').value) || 0;
+        const tiempoInstalacion = parseFloat(document.getElementById('tiempoInstalacion').value) || 0;
+        const fechaFinal = document.getElementById('fechaFinal').value || '';
+        const fechaCreacion = new Date().toISOString().split('T')[0];
+
+        const tabla = document.getElementById('tablaItemsCotizacion').getElementsByTagName('tbody')[0];
+        const items = Array.from(tabla.rows).map(row => ({
+            descripcion: row.querySelector('.descripcion').value || 'Ítem Sin Descripción',
+            unidad: row.querySelector('.unidad').value,
+            cantidad: parseFloat(row.querySelector('.cantidad').value) || 0,
+            precioUnitario: parseFloat(row.querySelector('.precioUnitario').value) || 0
+        }));
+
+        if (!items.length || !nombreCliente || !proyecto) {
+            showToast('Complete los campos requeridos: Cliente, Proyecto e Ítems.');
+            return;
+        }
+
+        const cotizacion = {
+            consecutivo,
+            nombreCliente,
+            proyecto,
+            descripcion,
+            moneda,
+            tasaCambio,
+            conAIU,
+            administrativo,
+            imprevistos,
+            utilidad,
+            formaPago,
+            porcentajeAnticipo,
+            valorAnticipo: parseFloat(document.getElementById('valorAnticipo').textContent.replace(/[^0-9.]/g, '')) || 0,
+            fechaAnticipo,
+            importacion,
+            tiempoImportacion,
+            fechaLlegadaMaterial,
+            tiempoPlaneacion,
+            tiempoFabricacionDespacho,
+            tiempoInstalacion,
+            fechaFinal,
+            fechaCreacion,
+            precioTotal: parseFloat(document.getElementById('precioTotal').textContent.replace(/[^0-9.]/g, '')) || 0
+        };
+
+        // Guardar en Supabase
+        const { items: itemsData, ...cotData } = cotizacion;
         const { data: newCot, error: cotError } = await supabase
             .from('cotizaciones')
             .insert([cotData])
@@ -217,8 +289,8 @@ async function guardarCotizacion(cotizacion) {
 
         if (cotError) throw new Error('Error al guardar cotización: ' + cotError.message);
 
-        if (items && items.length > 0) {
-            const itemsWithCotId = items.map(item => ({
+        if (itemsData && itemsData.length > 0) {
+            const itemsWithCotId = itemsData.map(item => ({
                 ...item,
                 cotizacion_id: newCot.id
             }));
@@ -229,85 +301,18 @@ async function guardarCotizacion(cotizacion) {
             if (itemsError) throw new Error('Error al guardar ítems: ' + itemsError.message);
         }
 
-        showToast('Cotización guardada correctamente.');
-        cargarCotizaciones(); // Actualizar la lista de cotizaciones (función de consultar.js)
+        showToast('Cotización guardada exitosamente.', 'success');
+        await actualizarConsecutivo();
+        document.getElementById('nombreCliente').value = '';
+        document.getElementById('proyecto').value = '';
+        document.getElementById('descripcion').value = '';
+        tabla.innerHTML = '';
+        calcularCotizacion();
+        cargarCotizaciones(); // Actualizar la lista de cotizaciones en la pestaña Consultar
     } catch (error) {
         console.error('Error al guardar cotización:', error);
         showToast('Error al guardar cotización: ' + error.message);
     }
-}
-
-// Manejar el envío del formulario de cotización
-document.getElementById('cotizacionForm').addEventListener('submit', async function (e) {
-    e.preventDefault();
-
-    const consecutivo = document.getElementById('consecutivoCotizacion').value;
-    const nombreCliente = document.getElementById('nombreCliente').value;
-    const proyecto = document.getElementById('proyecto').value;
-    const descripcion = document.getElementById('descripcionCotizacion').value;
-    const fechaCreacion = new Date().toISOString().split('T')[0];
-    const fechaFinal = document.getElementById('fechaFinal').value;
-    const importacion = document.getElementById('importacion').checked;
-    const tiempoImportacion = parseInt(document.getElementById('tiempoImportacion').value) || 0;
-    const fechaLlegadaMaterial = document.getElementById('fechaLlegadaMaterial').value;
-    const tiempoPlaneacion = parseInt(document.getElementById('tiempoPlaneacion').value) || 0;
-    const tiempoFabricacionDespacho = parseInt(document.getElementById('tiempoFabricacionDespacho').value) || 0;
-    const tiempoInstalacion = parseInt(document.getElementById('tiempoInstalacion').value) || 0;
-    const formaPago = document.getElementById('formaPago').value;
-    const valorAnticipo = parseFloat(document.getElementById('valorAnticipo').value) || 0;
-    const conAIU = document.getElementById('conAIU').checked;
-    const administrativo = parseFloat(document.getElementById('administrativo').value) || 0;
-    const imprevistos = parseFloat(document.getElementById('imprevistos').value) || 0;
-    const utilidad = parseFloat(document.getElementById('utilidad').value) || 0;
-    const precioTotal = parseFloat(document.getElementById('precioTotalCotizacion').value.replace(/[^0-9.-]+/g, '')) || 0;
-
-    const items = [];
-    const tablaItems = document.getElementById('tablaItems').getElementsByTagName('tbody')[0].rows;
-    for (let i = 0; i < tablaItems.length; i++) {
-        const fila = tablaItems[i];
-        items.push({
-            descripcion: fila.cells[0].querySelector('input').value,
-            unidad: fila.cells[1].querySelector('select').value,
-            cantidad: parseFloat(fila.cells[2].querySelector('input').value) || 0,
-            precioUnitario: parseFloat(fila.cells[3].querySelector('input').value) || 0
-        });
-    }
-
-    const cotizacion = {
-        consecutivo,
-        nombreCliente,
-        proyecto,
-        descripcion,
-        fechaCreacion,
-        fechaFinal,
-        importacion,
-        tiempoImportacion,
-        fechaLlegadaMaterial,
-        tiempoPlaneacion,
-        tiempoFabricacionDespacho,
-        tiempoInstalacion,
-        formaPago,
-        valorAnticipo,
-        conAIU,
-        administrativo,
-        imprevistos,
-        utilidad,
-        precioTotal,
-        items
-    };
-
-    await guardarCotizacion(cotizacion);
-    $('#cotizacionModal').modal('hide');
-    document.getElementById('cotizacionForm').reset();
-});
-
-// Función para mostrar notificaciones
-function showToast(message) {
-    const toast = document.createElement('div');
-    toast.className = 'toast';
-    toast.textContent = message;
-    document.body.appendChild(toast);
-    setTimeout(() => toast.remove(), 3000);
 }
 
 // Inicializar event listeners para cálculos automáticos de fechas
@@ -331,8 +336,55 @@ document.addEventListener('DOMContentLoaded', () => {
                 calcularFechaFinal();
             });
         }
+
+        // Event listeners adicionales para cálculos automáticos
+        const camposCalculo = ['moneda', 'tasaCambio', 'administrativo', 'imprevistos', 'utilidad', 'porcentajeAnticipo', 'conAIU'];
+        camposCalculo.forEach(id => {
+            const elemento = document.getElementById(id);
+            if (elemento) {
+                elemento.addEventListener('change', calcularCotizacion);
+                elemento.addEventListener('input', calcularCotizacion);
+            }
+        });
+
+        // Event listener para agregar ítems
+        const agregarItemBtn = document.getElementById('agregarItemCotizacion');
+        if (agregarItemBtn) {
+            agregarItemBtn.addEventListener('click', agregarItemCotizacion);
+        }
+
+        // Event listener para guardar cotización
+        const cotizacionForm = document.getElementById('cotizacionForm');
+        if (cotizacionForm) {
+            cotizacionForm.addEventListener('submit', async function (e) {
+                e.preventDefault();
+                await guardarCotizacion();
+                $('#cotizacionModal').modal('hide');
+                cotizacionForm.reset();
+            });
+        }
+
+        // Inicializar consecutivo y cálculos
+        actualizarConsecutivo();
+        calcularCotizacion();
     } catch (error) {
-        console.error('Error al inicializar listeners de fechas:', error);
-        showToast('Error al configurar cálculos de fechas: ' + error.message);
+        console.error('Error al inicializar listeners:', error);
+        showToast('Error al configurar la página: ' + error.message);
     }
 });
+
+function formatCurrency(value, currency = 'COP') {
+    return new Intl.NumberFormat('es-CO', {
+        style: 'currency',
+        currency: currency,
+        minimumFractionDigits: 0
+    }).format(value);
+}
+
+function showToast(message, type = 'error') {
+    const toast = document.createElement('div');
+    toast.className = `toast ${type}`;
+    toast.textContent = message;
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 3000);
+}

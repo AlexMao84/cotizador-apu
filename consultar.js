@@ -1,396 +1,390 @@
-function filtrarCotizaciones() {
-    try {
-        const buscar = document.getElementById('buscarCliente').value.toLowerCase();
-        const cotizaciones = JSON.parse(localStorage.getItem('cotizaciones') || '[]');
-        const tabla = document.getElementById('listaCotizaciones').getElementsByTagName('tbody')[0];
-        tabla.innerHTML = '';
+/* cotizacion.js - Maneja el guardado de cotizaciones con Supabase */
 
-        cotizaciones
-            .filter(cot => {
-                const nombreCliente = (cot.nombreCliente || '').toLowerCase();
-                const proyecto = (cot.proyecto || '').toLowerCase();
-                const consecutivo = (cot.consecutivo || '').toLowerCase();
-                return nombreCliente.includes(buscar) || proyecto.includes(buscar) || consecutivo.includes(buscar);
-            })
-            .forEach(cot => {
-                const totalCantidad = cot.items.reduce((sum, item) => sum + (item.cantidad || 0), 0);
-                const row = tabla.insertRow();
-                row.innerHTML = `
-                    <td>${cot.consecutivo}</td>
-                    <td>${cot.nombreCliente || 'Sin Cliente'}</td>
-                    <td>${cot.proyecto || 'Sin Proyecto'}</td>
-                    <td>${totalCantidad.toFixed(2)}</td>
-                    <td>${formatCurrency(cot.precioTotal || 0, cot.moneda || 'COP')}</td>
-                    <td>
-                        <button class="action-btn" onclick="editarCotizacion('${cot.consecutivo}')" title="Editar"><i class="fas fa-edit"></i></button>
-                        <button class="action-btn" onclick="eliminarCotizacion('${cot.consecutivo}')" title="Eliminar"><i class="fas fa-trash"></i></button>
-                    </td>
-                    <td><button class="pdf-btn" onclick="descargarPDFCotizacion('${cot.consecutivo}')" title="Descargar PDF"><i class="fas fa-file-pdf"></i></button></td>
-                `;
-            });
+function agregarItemCotizacion() {
+    try {
+        const tabla = document.getElementById('tablaItemsCotizacion').getElementsByTagName('tbody')[0];
+        const newRow = tabla.insertRow();
+        newRow.innerHTML = `
+            <td><input type="text" class="editable descripcion" value="Nuevo Ítem" required></td>
+            <td><select class="editable unidad">
+                <option value="UND">UND</option>
+                <option value="M2">M2</option>
+                <option value="ML">ML</option>
+            </select></td>
+            <td><input type="number" class="editable cantidad" value="1" min="0" step="0.01" required></td>
+            <td><input type="number" class="editable precioUnitario" value="0" min="0" step="0.01" required></td>
+            <td class="subtotal"></td>
+            <td><button class="delete-btn" onclick="eliminarItemCotizacion(this)" title="Eliminar ítem"><i class="fas fa-trash"></i></button></td>
+        `;
+        newRow.querySelectorAll('.editable').forEach(input => input.addEventListener('input', calcularCotizacion));
+        calcularCotizacion();
     } catch (error) {
-        console.error('Error al filtrar cotizaciones:', error);
-        showToast('Error al filtrar cotizaciones: ' + error.message);
+        console.error('Error al agregar ítem de cotización:', error);
+        showToast('Error al agregar ítem: ' + error.message);
     }
 }
 
-// Función para cargar cotizaciones desde Supabase
-async function cargarCotizaciones() {
+function eliminarItemCotizacion(button) {
+    try {
+        button.closest('tr').remove();
+        calcularCotizacion();
+    } catch (error) {
+        console.error('Error al eliminar ítem de cotización:', error);
+        showToast('Error al eliminar ítem: ' + error.message);
+    }
+}
+
+function toggleAIU() {
+    try {
+        const conAIU = document.getElementById('conAIU').checked;
+        document.getElementById('aiuDesglose').classList.toggle('hidden', !conAIU);
+        document.getElementById('valorAdministrativoRow').classList.toggle('hidden', !conAIU);
+        document.getElementById('valorImprevistosRow').classList.toggle('hidden', !conAIU);
+        document.getElementById('valorUtilidadRow').classList.toggle('hidden', !conAIU);
+        document.getElementById('valorAIURow').classList.toggle('hidden', !conAIU);
+        calcularCotizacion();
+    } catch (error) {
+        console.error('Error al alternar AIU:', error);
+        showToast('Error al alternar AIU: ' + error.message);
+    }
+}
+
+function toggleAIUFields() {
+    try {
+        const moneda = document.getElementById('moneda').value;
+        const conAIUField = document.getElementById('conAIUField');
+        conAIUField.classList.toggle('hidden', moneda !== 'COP');
+        if (moneda !== 'COP') {
+            document.getElementById('conAIU').checked = false;
+            toggleAIU();
+        }
+    } catch (error) {
+        console.error('Error al alternar campos AIU:', error);
+        showToast('Error al alternar campos AIU: ' + error.message);
+    }
+}
+
+function actualizarTasaCambio() {
+    try {
+        const moneda = document.getElementById('moneda').value;
+        const tasaCambioInput = document.getElementById('tasaCambio');
+        tasaCambioInput.disabled = moneda === 'COP';
+        tasaCambioInput.value = moneda === 'COP' ? 1 : tasaCambioInput.value || 4000;
+        calcularCotizacion();
+    } catch (error) {
+        console.error('Error al actualizar tasa de cambio:', error);
+        showToast('Error al actualizar tasa de cambio: ' + error.message);
+    }
+}
+
+function calcularCotizacion() {
+    try {
+        const tabla = document.getElementById('tablaItemsCotizacion');
+        const filas = tabla.getElementsByTagName('tbody')[0].rows;
+        let subtotalGeneral = 0;
+        for (let fila of filas) {
+            const cantidad = parseFloat(fila.querySelector('.cantidad').value) || 0;
+            const precio = parseFloat(fila.querySelector('.precioUnitario').value) || 0;
+            if (cantidad <= 0) {
+                document.getElementById('cantidadError').classList.add('active');
+                document.getElementById('cantidadError').textContent = 'La cantidad debe ser mayor a 0.';
+                return;
+            }
+            const subtotal = cantidad * precio;
+            fila.querySelector('.subtotal').textContent = formatCurrency(subtotal);
+            subtotalGeneral += subtotal;
+        }
+        document.getElementById('cantidadError').classList.remove('active');
+
+        const conAIU = document.getElementById('conAIU').checked;
+        let administracion = 0, imprevistos = 0, utilidad = 0, totalAIU = 0;
+        if (conAIU) {
+            administracion = (parseFloat(document.getElementById('administrativo').value) || 0) / 100 * subtotalGeneral;
+            imprevistos = (parseFloat(document.getElementById('imprevistos').value) || 0) / 100 * subtotalGeneral;
+            utilidad = (parseFloat(document.getElementById('utilidad').value) || 0) / 100 * subtotalGeneral;
+            totalAIU = administracion + imprevistos + utilidad;
+        }
+
+        const iva = subtotalGeneral * 0.19;
+        const total = subtotalGeneral + totalAIU + iva;
+        const tasaCambio = parseFloat(document.getElementById('tasaCambio').value) || 1;
+        if (tasaCambio <= 0) {
+            document.getElementById('tasaCambioError').classList.add('active');
+            return;
+        }
+        document.getElementById('tasaCambioError').classList.remove('active');
+
+        const moneda = document.getElementById('moneda').value;
+        document.getElementById('precioUnitarioCantidad').textContent = formatCurrency(subtotalGeneral, moneda);
+        document.getElementById('valorAdministrativo').textContent = formatCurrency(administracion, moneda);
+        document.getElementById('valorImprevistos').textContent = formatCurrency(imprevistos, moneda);
+        document.getElementById('valorUtilidad').textContent = formatCurrency(utilidad, moneda);
+        document.getElementById('valorAIU').textContent = formatCurrency(totalAIU, moneda);
+        document.getElementById('iva').textContent = formatCurrency(iva, moneda);
+        document.getElementById('precioTotal').textContent = formatCurrency(total, moneda);
+
+        const porcentajeAnticipo = parseFloat(document.getElementById('porcentajeAnticipo').value) || 0;
+        const valorAnticipo = total * (porcentajeAnticipo / 100);
+        document.getElementById('valorAnticipo').textContent = formatCurrency(valorAnticipo, moneda);
+
+        calcularFechaLlegadaMaterial();
+        calcularFechaFinal();
+    } catch (error) {
+        console.error('Error al calcular cotización:', error);
+        showToast('Error al calcular cotización: ' + error.message);
+    }
+}
+
+function toggleTiempoImportacion() {
+    try {
+        const importacion = document.getElementById('importacion').value;
+        document.getElementById('tiempoImportacionField').classList.toggle('hidden', importacion === 'No');
+        calcularFechaLlegadaMaterial();
+    } catch (error) {
+        console.error('Error al alternar tiempo de importación:', error);
+        showToast('Error al alternar tiempo de importación: ' + error.message);
+    }
+}
+
+function calcularFechaLlegadaMaterial() {
+    try {
+        const fechaAnticipo = document.getElementById('fechaAnticipo').value;
+        const fechaLlegadaInput = document.getElementById('fechaLlegadaMaterial');
+        if (!fechaAnticipo) {
+            fechaLlegadaInput.value = '';
+            calcularFechaFinal();
+            return;
+        }
+        const importacion = document.getElementById('importacion').value;
+        let dias = 0;
+        if (importacion === 'Sí') {
+            dias = parseInt(document.getElementById('tiempoImportacion').value) || 0;
+        }
+        const fecha = new Date(fechaAnticipo);
+        fecha.setDate(fecha.getDate() + dias);
+        fechaLlegadaInput.value = fecha.toISOString().split('T')[0];
+        calcularFechaFinal();
+    } catch (error) {
+        console.error('Error al calcular fecha de llegada:', error);
+        showToast('Error al calcular fecha de llegada: ' + error.message);
+    }
+}
+
+function calcularFechaFinal() {
+    try {
+        const fechaLlegada = document.getElementById('fechaLlegadaMaterial').value;
+        const fechaFinalInput = document.getElementById('fechaFinal');
+        if (!fechaLlegada) {
+            fechaFinalInput.value = '';
+            return;
+        }
+        const planeacion = (parseFloat(document.getElementById('tiempoPlaneacion').value) || 0) * 7;
+        const fabricacion = (parseFloat(document.getElementById('tiempoFabricacionDespacho').value) || 0) * 7;
+        const instalacion = (parseFloat(document.getElementById('tiempoInstalacion').value) || 0) * 30;
+        const fecha = new Date(fechaLlegada);
+        fecha.setDate(fecha.getDate() + planeacion + fabricacion + instalacion);
+        fechaFinalInput.value = fecha.toISOString().split('T')[0];
+    } catch (error) {
+        console.error('Error al calcular fecha final:', error);
+        showToast('Error al calcular fecha final: ' + error.message);
+    }
+}
+
+async function actualizarConsecutivo() {
     try {
         const { data: cotizaciones, error } = await supabase
             .from('cotizaciones')
-            .select('*')
-            .order('created_at', { ascending: false });
+            .select('consecutivo')
+            .order('consecutivo', { ascending: false })
+            .limit(1);
 
-        if (error) throw new Error('Error al cargar cotizaciones: ' + error.message);
+        if (error) throw new Error('Error al obtener el último consecutivo: ' + error.message);
 
-        const tbody = document.getElementById('cotizacionesBody');
-        tbody.innerHTML = '';
+        let ultimoConsecutivo = 25040000;
+        if (cotizaciones && cotizaciones.length > 0) {
+            const ultimo = cotizaciones[0].consecutivo;
+            ultimoConsecutivo = parseInt(ultimo.replace('SEL', '')) || ultimoConsecutivo;
+        }
 
-        if (cotizaciones.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="5" class="text-center">No hay cotizaciones registradas.</td></tr>';
+        const nuevoConsecutivo = `SEL${ultimoConsecutivo + 1}`;
+        document.getElementById('consecutivo').textContent = nuevoConsecutivo;
+        return nuevoConsecutivo;
+    } catch (error) {
+        console.error('Error al actualizar consecutivo:', error);
+        showToast('Error al actualizar consecutivo: ' + error.message);
+        return 'SEL25040001';
+    }
+}
+
+async function guardarCotizacion() {
+    try {
+        const consecutivo = await actualizarConsecutivo();
+        const nombreCliente = document.getElementById('nombreCliente').value || 'Cliente Desconocido';
+        const proyecto = document.getElementById('proyecto').value || 'Proyecto Sin Nombre';
+        const descripcion = document.getElementById('descripcion').value || '';
+        const moneda = document.getElementById('moneda').value;
+        const tasaCambio = parseFloat(document.getElementById('tasaCambio').value) || 1;
+        const conAIU = document.getElementById('conAIU').checked;
+        const administrativo = parseFloat(document.getElementById('administrativo').value) || 0;
+        const imprevistos = parseFloat(document.getElementById('imprevistos').value) || 0;
+        const utilidad = parseFloat(document.getElementById('utilidad').value) || 0;
+        const formaPago = document.getElementById('formaPago').value;
+        const porcentajeAnticipo = parseFloat(document.getElementById('porcentajeAnticipo').value) || 0;
+        const fechaAnticipo = document.getElementById('fechaAnticipo').value || '';
+        const importacion = document.getElementById('importacion').value === 'Sí';
+        const tiempoImportacion = parseInt(document.getElementById('tiempoImportacion').value) || 0;
+        const fechaLlegadaMaterial = document.getElementById('fechaLlegadaMaterial').value || '';
+        const tiempoPlaneacion = parseFloat(document.getElementById('tiempoPlaneacion').value) || 0;
+        const tiempoFabricacionDespacho = parseFloat(document.getElementById('tiempoFabricacionDespacho').value) || 0;
+        const tiempoInstalacion = parseFloat(document.getElementById('tiempoInstalacion').value) || 0;
+        const fechaFinal = document.getElementById('fechaFinal').value || '';
+        const fechaCreacion = new Date().toISOString().split('T')[0];
+
+        const tabla = document.getElementById('tablaItemsCotizacion').getElementsByTagName('tbody')[0];
+        const items = Array.from(tabla.rows).map(row => ({
+            descripcion: row.querySelector('.descripcion').value || 'Ítem Sin Descripción',
+            unidad: row.querySelector('.unidad').value,
+            cantidad: parseFloat(row.querySelector('.cantidad').value) || 0,
+            precioUnitario: parseFloat(row.querySelector('.precioUnitario').value) || 0
+        }));
+
+        if (!items.length || !nombreCliente || !proyecto) {
+            showToast('Complete los campos requeridos: Cliente, Proyecto e Ítems.');
             return;
         }
 
-        cotizaciones.forEach(cot => {
-            const tr = document.createElement('tr');
-            tr.innerHTML = `
-                <td>${cot.consecutivo}</td>
-                <td>${cot.nombreCliente || 'Sin Cliente'}</td>
-                <td>${cot.proyecto || 'Sin Proyecto'}</td>
-                <td>
-                    <button class="btn btn-info btn-sm" onclick="descargarPDFCotizacion('${cot.consecutivo}')">
-                        <i class="fas fa-file-pdf"></i> PDF
-                    </button>
-                    <button class="btn btn-danger btn-sm" onclick="eliminarCotizacion('${cot.consecutivo}')">
-                        <i class="fas fa-trash"></i> Eliminar
-                    </button>
-                </td>
-            `;
-            tbody.appendChild(tr);
-        });
-    } catch (error) {
-        console.error('Error al cargar cotizaciones:', error);
-        showToast('Error al cargar cotizaciones: ' + error.message);
-    }
-}
-
-// Función para eliminar una cotización de Supabase
-async function eliminarCotizacion(consecutivo) {
-    if (!confirm('¿Estás seguro de eliminar esta cotización?')) return;
-
-    try {
-        // Primero, obtener el ID de la cotización para eliminar los ítems asociados
-        const { data: cotizacion, error: fetchError } = await supabase
-            .from('cotizaciones')
-            .select('id')
-            .eq('consecutivo', consecutivo)
-            .single();
-
-        if (fetchError || !cotizacion) throw new Error('Cotización no encontrada.');
-
-        // Eliminar la cotización (los ítems se eliminan automáticamente por la restricción ON DELETE CASCADE)
-        const { error: deleteError } = await supabase
-            .from('cotizaciones')
-            .delete()
-            .eq('consecutivo', consecutivo);
-
-        if (deleteError) throw new Error('Error al eliminar cotización: ' + deleteError.message);
-
-        showToast('Cotización eliminada correctamente.');
-        cargarCotizaciones(); // Actualizar la lista de cotizaciones
-    } catch (error) {
-        console.error('Error al eliminar cotización:', error);
-        showToast('Error al eliminar cotización: ' + error.message);
-    }
-}
-
-// Función para generar el PDF
-async function descargarPDFCotizacion(consecutivo) {
-    try {
-        // Obtener la cotización desde Supabase
-        const { data: cotizacion, error: cotError } = await supabase
-            .from('cotizaciones')
-            .select('*')
-            .eq('consecutivo', consecutivo)
-            .single();
-
-        if (cotError || !cotizacion) throw new Error('Cotización no encontrada.');
-
-        // Obtener los ítems asociados a la cotización
-        const { data: items, error: itemsError } = await supabase
-            .from('items')
-            .select('*')
-            .eq('cotizacion_id', cotizacion.id);
-
-        if (itemsError) throw new Error('Error al obtener los ítems: ' + itemsError.message);
-
-        // Preparar el objeto cot para el PDF
-        const cot = {
-            ...cotizacion,
-            items: items || []
+        const cotizacion = {
+            consecutivo,
+            nombreCliente,
+            proyecto,
+            descripcion,
+            moneda,
+            tasaCambio,
+            conAIU,
+            administrativo,
+            imprevistos,
+            utilidad,
+            formaPago,
+            porcentajeAnticipo,
+            valorAnticipo: parseFloat(document.getElementById('valorAnticipo').textContent.replace(/[^0-9.]/g, '')) || 0,
+            fechaAnticipo,
+            importacion,
+            tiempoImportacion,
+            fechaLlegadaMaterial,
+            tiempoPlaneacion,
+            tiempoFabricacionDespacho,
+            tiempoInstalacion,
+            fechaFinal,
+            fechaCreacion,
+            precioTotal: parseFloat(document.getElementById('precioTotal').textContent.replace(/[^0-9.]/g, '')) || 0
         };
 
-        const { jsPDF } = window.jspdf;
-        const doc = new jsPDF({
-            orientation: 'portrait',
-            unit: 'mm',
-            format: 'a4'
-        });
+        // Guardar en Supabase
+        const { items: itemsData, ...cotData } = cotizacion;
+        const { data: newCot, error: cotError } = await supabase
+            .from('cotizaciones')
+            .insert([cotData])
+            .select()
+            .single();
 
-        // Constantes para el diseño
-        const pageWidth = doc.internal.pageSize.getWidth();
-        const pageHeight = doc.internal.pageSize.getHeight();
-        const margin = 15;
-        const lineHeight = 6;
-        let y = margin;
+        if (cotError) throw new Error('Error al guardar cotización: ' + cotError.message);
 
-        // Borde alrededor del contenido
-        doc.setLineWidth(0.2);
-        doc.setDrawColor(150, 150, 150);
-        doc.rect(margin - 5, margin - 5, pageWidth - 2 * (margin - 5), pageHeight - 2 * (margin - 5));
+        if (itemsData && itemsData.length > 0) {
+            const itemsWithCotId = itemsData.map(item => ({
+                ...item,
+                cotizacion_id: newCot.id
+            }));
+            const { error: itemsError } = await supabase
+                .from('items')
+                .insert(itemsWithCotId);
 
-        // Fondo del encabezado
-        doc.setFillColor(220, 230, 240); // Gris-azul claro
-        doc.rect(margin - 5, margin - 5, pageWidth - 2 * (margin - 5), 25, 'F');
-
-        // Encabezado
-        doc.setFontSize(16);
-        doc.setFont("helvetica", "bold");
-        doc.setTextColor(30, 58, 138);
-        doc.text("SELCO Materiales Compuestos", pageWidth / 2, y, { align: "center" });
-        y += lineHeight;
-
-        doc.setFontSize(9);
-        doc.setFont("helvetica", "normal");
-        doc.setTextColor(80, 80, 80);
-        doc.text("Teléfono: (+57) 123-456-7890 | Email: contacto@selco.com | www.selco.com", pageWidth / 2, y, { align: "center" });
-        y += lineHeight + 5;
-
-        // Título del documento
-        doc.setFontSize(14);
-        doc.setFont("helvetica", "bold");
-        doc.setTextColor(30, 58, 138);
-        doc.text("Cotización", pageWidth / 2, y, { align: "center" });
-        y += lineHeight + 5;
-
-        // Fecha de emisión
-        const today = new Date();
-        const fechaEmision = today.toISOString().split('T')[0];
-        const fechaVencimiento = new Date(today);
-        fechaVencimiento.setDate(today.getDate() + 15); // Validez de 15 días
-        const fechaVencimientoStr = fechaVencimiento.toISOString().split('T')[0];
-
-        doc.setFontSize(9);
-        doc.setTextColor(80, 80, 80);
-        doc.text(`Fecha de Emisión: ${fechaEmision}`, pageWidth - margin, y, { align: "right" });
-        y += lineHeight + 5;
-
-        // Línea divisoria
-        doc.setLineWidth(0.3);
-        doc.setDrawColor(30, 58, 138);
-        doc.line(margin, y, pageWidth - margin, y);
-        y += lineHeight;
-
-        // Detalles de la cotización
-        doc.setFontSize(12);
-        doc.setFont("helvetica", "bold");
-        doc.setTextColor(30, 58, 138);
-        doc.text("Detalles de la Cotización", margin, y);
-        y += lineHeight + 2;
-
-        doc.setFontSize(10);
-        doc.setFont("helvetica", "normal");
-        doc.setTextColor(50, 50, 50);
-        doc.text(`Consecutivo: ${cot.consecutivo}`, margin, y);
-        y += lineHeight;
-        doc.text(`Cliente: ${cot.nombreCliente || 'Sin Cliente'}`, margin, y);
-        y += lineHeight;
-        doc.text(`Proyecto: ${cot.proyecto || 'Sin Proyecto'}`, margin, y);
-        y += lineHeight;
-        doc.text(`Descripción: ${cot.descripcion || 'Sin Descripción'}`, margin, y, { maxWidth: pageWidth - 2 * margin });
-        y += lineHeight * 2;
-
-        // Tabla de ítems unida con el resumen financiero
-        const itemsData = cot.items.map(item => [
-            item.descripcion || 'Sin Descripción',
-            item.unidad || 'UND',
-            (item.cantidad || 0).toFixed(2),
-            formatCurrency(item.precioUnitario || 0, cot.moneda || 'COP'),
-            formatCurrency((item.cantidad || 0) * (item.precioUnitario || 0), cot.moneda || 'COP')
-        ]);
-
-        // Calcular el resumen financiero
-        const subtotal = cot.items.reduce((sum, i) => sum + (i.cantidad || 0) * (item.precioUnitario || 0), 0);
-        const iva = subtotal * 0.19;
-        const financialSummary = [
-            ['Subtotal General', '', '', '', formatCurrency(subtotal, cot.moneda || 'COP')]
-        ];
-
-        if (cot.conAIU) {
-            const administracion = (cot.administrativo / 100) * subtotal;
-            const imprevistos = (cot.imprevistos / 100) * subtotal;
-            const utilidad = (cot.utilidad / 100) * subtotal;
-            const totalAIU = administracion + imprevistos + utilidad;
-
-            financialSummary.push(['Administración', '', '', '', formatCurrency(administracion, cot.moneda || 'COP')]);
-            financialSummary.push(['Imprevistos', '', '', '', formatCurrency(imprevistos, cot.moneda || 'COP')]);
-            financialSummary.push(['Utilidad', '', '', '', formatCurrency(utilidad, cot.moneda || 'COP')]);
-            financialSummary.push(['Total AIU', '', '', '', formatCurrency(totalAIU, cot.moneda || 'COP')]);
+            if (itemsError) throw new Error('Error al guardar ítems: ' + itemsError.message);
         }
 
-        financialSummary.push(['IVA (19%)', '', '', '', formatCurrency(iva, cot.moneda || 'COP')]);
-        financialSummary.push(['Total', '', '', '', formatCurrency(cot.precioTotal || 0, cot.moneda || 'COP')]);
-
-        // Combinar ítems y resumen financiero en una sola tabla
-        const combinedData = [...itemsData, ...financialSummary];
-
-        doc.autoTable({
-            head: [['Descripción', 'Unidad', 'Cantidad', 'Precio Unitario', 'Subtotal']],
-            body: combinedData,
-            startY: y,
-            margin: { left: margin, right: margin },
-            styles: { fontSize: 9, cellPadding: 2, textColor: [50, 50, 50], lineWidth: 0.1, lineColor: [150, 150, 150] },
-            headStyles: { fillColor: [30, 58, 138], textColor: [255, 255, 255], fontStyle: 'bold' },
-            alternateRowStyles: { fillColor: [245, 245, 245] },
-            columnStyles: {
-                0: { cellWidth: 60 },
-                1: { cellWidth: 20 },
-                2: { cellWidth: 20 },
-                3: { cellWidth: 30 },
-                4: { cellWidth: 30 }
-            },
-            didParseCell: (data) => {
-                // Fusionar celdas para el resumen financiero (columnas 3 y 4)
-                if (data.row.index >= itemsData.length) {
-                    if (data.column.index === 3) {
-                        data.cell.colSpan = 2; // Fusionar las columnas 3 y 4
-                        data.cell.styles.halign = 'right'; // Alinear a la derecha
-                        data.cell.styles.fontStyle = 'bold'; // Negrita para el resumen
-                    } else if (data.column.index === 4) {
-                        data.cell.text = ''; // Vaciar la celda fusionada
-                    }
-                    // Vaciar las primeras tres columnas para el resumen financiero
-                    if (data.column.index < 3) {
-                        data.cell.text = '';
-                    }
-                }
-            }
-        });
-
-        y = doc.lastAutoTable.finalY + 10;
-
-        // Condiciones y tiempos en tabla enmarcada
-        doc.setFontSize(12);
-        doc.setFont("helvetica", "bold");
-        doc.setTextColor(30, 58, 138);
-        doc.text("Condiciones y Tiempos", margin, y);
-        y += lineHeight + 2;
-
-        const tiemposData = [
-            ['Fecha de Creación', cot.fechaCreacion || 'No Especificada'],
-            ['Fecha de Emisión', fechaEmision],
-            ['Fecha de Vencimiento', `${fechaVencimientoStr} (Validez: 15 días)`],
-            ['Importación', cot.importacion ? 'Sí' : 'No'],
-            ['Tiempo de Importación', `${cot.tiempoImportacion || '0'} días`],
-            ['Fecha de Llegada del Material', cot.fechaLlegadaMaterial || 'No Especificada'],
-            ['Tiempo de Planeación', `${cot.tiempoPlaneacion || '0'} semanas`],
-            ['Tiempo de Fabricación y Despacho', `${cot.tiempoFabricacionDespacho || '0'} semanas`],
-            ['Tiempo de Instalación', `${cot.tiempoInstalacion || '0'} meses`],
-            ['Fecha Final Estimada', cot.fechaFinal || 'No Especificada'],
-            ['Forma de Pago', cot.formaPago || 'No Especificada'],
-            ['Valor del Anticipo', formatCurrency(cot.valorAnticipo || 0, cot.moneda || 'COP')]
-        ];
-
-        doc.autoTable({
-            head: [['Concepto', 'Valor']],
-            body: tiemposData,
-            startY: y,
-            margin: { left: margin, right: margin },
-            styles: { fontSize: 9, cellPadding: 2, textColor: [50, 50, 50], lineWidth: 0.2, lineColor: [100, 100, 100] },
-            headStyles: { fillColor: [30, 58, 138], textColor: [255, 255, 255], fontStyle: 'bold' },
-            alternateRowStyles: { fillColor: [245, 245, 245] },
-            columnStyles: {
-                0: { cellWidth: 60 },
-                1: { cellWidth: 100 }
-            }
-        });
-
-        y = doc.lastAutoTable.finalY + 10;
-
-        // Notas legales
-        doc.setFontSize(9);
-        doc.setFont("helvetica", "italic");
-        doc.setTextColor(100, 100, 100);
-        doc.text("Notas: Esta cotización es válida por 15 días a partir de la fecha de emisión. Precios sujetos a cambios sin previo aviso.", margin, y, { maxWidth: pageWidth - 2 * margin });
-
-        // Pie de página con información adicional
-        const pageCount = doc.internal.getNumberOfPages();
-        for (let i = 1; i <= pageCount; i++) {
-            doc.setPage(i);
-            doc.setFontSize(8);
-            doc.setTextColor(100, 100, 100);
-            doc.text("SELCO Materiales Compuestos | (+57) 123-456-7890 | contacto@selco.com", margin, pageHeight - margin + 2);
-            doc.text(`Página ${i} de ${pageCount}`, pageWidth - margin, pageHeight - margin + 2, { align: "right" });
-        }
-
-        doc.save(`cotizacion_${cot.consecutivo}.pdf`);
+        showToast('Cotización guardada exitosamente.', 'success');
+        await actualizarConsecutivo();
+        document.getElementById('nombreCliente').value = '';
+        document.getElementById('proyecto').value = '';
+        document.getElementById('descripcion').value = '';
+        tabla.innerHTML = '';
+        calcularCotizacion();
+        cargarCotizaciones(); // Actualizar la lista de cotizaciones en la pestaña Consultar
     } catch (error) {
-        console.error('Error al generar PDF de cotización:', error);
-        showToast('Error al generar PDF: ' + error.message);
+        console.error('Error al guardar cotización:', error);
+        showToast('Error al guardar cotización: ' + error.message);
     }
 }
 
-// Función para formatear moneda
-function formatCurrency(value, currency) {
+// Inicializar event listeners para cálculos automáticos de fechas
+document.addEventListener('DOMContentLoaded', () => {
+    try {
+        const camposFecha = ['fechaAnticipo', 'tiempoImportacion', 'tiempoPlaneacion', 'tiempoFabricacionDespacho', 'tiempoInstalacion'];
+        camposFecha.forEach(id => {
+            const elemento = document.getElementById(id);
+            if (elemento) {
+                elemento.addEventListener('input', () => {
+                    calcularFechaLlegadaMaterial();
+                    calcularFechaFinal();
+                });
+            }
+        });
+        const importacionSelect = document.getElementById('importacion');
+        if (importacionSelect) {
+            importacionSelect.addEventListener('change', () => {
+                toggleTiempoImportacion();
+                calcularFechaLlegadaMaterial();
+                calcularFechaFinal();
+            });
+        }
+
+        // Event listeners adicionales para cálculos automáticos
+        const camposCalculo = ['moneda', 'tasaCambio', 'administrativo', 'imprevistos', 'utilidad', 'porcentajeAnticipo', 'conAIU'];
+        camposCalculo.forEach(id => {
+            const elemento = document.getElementById(id);
+            if (elemento) {
+                elemento.addEventListener('change', calcularCotizacion);
+                elemento.addEventListener('input', calcularCotizacion);
+            }
+        });
+
+        // Event listener para agregar ítems
+        const agregarItemBtn = document.getElementById('agregarItemCotizacion');
+        if (agregarItemBtn) {
+            agregarItemBtn.addEventListener('click', agregarItemCotizacion);
+        }
+
+        // Event listener para guardar cotización
+        const cotizacionForm = document.getElementById('cotizacionForm');
+        if (cotizacionForm) {
+            cotizacionForm.addEventListener('submit', async function (e) {
+                e.preventDefault();
+                await guardarCotizacion();
+                $('#cotizacionModal').modal('hide');
+                cotizacionForm.reset();
+            });
+        }
+
+        // Inicializar consecutivo y cálculos
+        actualizarConsecutivo();
+        calcularCotizacion();
+    } catch (error) {
+        console.error('Error al inicializar listeners:', error);
+        showToast('Error al configurar la página: ' + error.message);
+    }
+});
+
+function formatCurrency(value, currency = 'COP') {
     return new Intl.NumberFormat('es-CO', {
         style: 'currency',
-        currency: currency || 'COP',
+        currency: currency,
         minimumFractionDigits: 0
     }).format(value);
 }
 
-// Función para mostrar notificaciones
-function showToast(message) {
+function showToast(message, type = 'error') {
     const toast = document.createElement('div');
-    toast.className = 'toast';
+    toast.className = `toast ${type}`;
     toast.textContent = message;
     document.body.appendChild(toast);
     setTimeout(() => toast.remove(), 3000);
-}
-
-// Cargar cotizaciones al iniciar
-document.addEventListener('DOMContentLoaded', cargarCotizaciones);
-function exportarCotizaciones() {
-    try {
-        const cotizaciones = JSON.parse(localStorage.getItem('cotizaciones') || '[]');
-        const blob = new Blob([JSON.stringify(cotizaciones, null, 2)], { type: 'application/json' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = 'cotizaciones.json';
-        a.click();
-        URL.revokeObjectURL(url);
-    } catch (error) {
-        console.error('Error al exportar cotizaciones:', error);
-        showToast('Error al exportar cotizaciones: ' + error.message);
-    }
-}
-
-function importarCotizaciones(files) {
-    try {
-        if (!files?.length) throw new Error('No se seleccionó archivo');
-        const file = files[0];
-        const reader = new FileReader();
-        reader.onload = e => {
-            const cotizaciones = JSON.parse(e.target.result);
-            localStorage.setItem('cotizaciones', JSON.stringify(cotizaciones));
-            filtrarCotizaciones();
-            showToast('Cotizaciones importadas exitosamente.', 'success');
-        };
-        reader.readAsText(file);
-    } catch (error) {
-        console.error('Error al importar cotizaciones:', error);
-        showToast('Error al importar cotizaciones: ' + error.message);
-    }
 }
