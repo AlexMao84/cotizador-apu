@@ -440,7 +440,12 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         // Inicializar consecutivo y cálculos
-        actualizarConsecutivo();
+        if (typeof supabase !== 'undefined') {
+            actualizarConsecutivo();
+        } else {
+            console.error('Supabase no está definido al inicializar. No se puede actualizar el consecutivo.');
+            showToast('Error: No se pudo conectar con la base de datos. Verifica la configuración de Supabase.');
+        }
         calcularCotizacion();
     } catch (error) {
         console.error('Error al inicializar listeners:', error);
