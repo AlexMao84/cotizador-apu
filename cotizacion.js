@@ -1,11 +1,7 @@
-/* cotizacion.js - Maneja el guardado de cotizaciones con Supabase */
-
 function agregarItemCotizacion() {
     try {
-        const tabla = document.getElementById('tablaItemsCotizacion');
-        if (!tabla) throw new Error("No se encontró el elemento 'tablaItemsCotizacion'");
-        const tbody = tabla.getElementsByTagName('tbody')[0];
-        const newRow = tbody.insertRow();
+        const tabla = document.getElementById('tablaItemsCotizacion').getElementsByTagName('tbody')[0];
+        const newRow = tabla.insertRow();
         newRow.innerHTML = `
             <td><input type="text" class="editable descripcion" value="Nuevo Ítem" required></td>
             <td><select class="editable unidad">
@@ -38,15 +34,12 @@ function eliminarItemCotizacion(button) {
 
 function toggleAIU() {
     try {
-        const conAIU = document.getElementById('conAIU');
-        if (!conAIU) throw new Error("No se encontró el elemento 'conAIU'");
-        const aiuDesglose = document.getElementById('aiuDesglose');
-        if (!aiuDesglose) throw new Error("No se encontró el elemento 'aiuDesglose'");
-        aiuDesglose.classList.toggle('hidden', !conAIU.checked);
-        document.getElementById('valorAdministrativoRow').classList.toggle('hidden', !conAIU.checked);
-        document.getElementById('valorImprevistosRow').classList.toggle('hidden', !conAIU.checked);
-        document.getElementById('valorUtilidadRow').classList.toggle('hidden', !conAIU.checked);
-        document.getElementById('valorAIURow').classList.toggle('hidden', !conAIU.checked);
+        const conAIU = document.getElementById('conAIU').checked;
+        document.getElementById('aiuDesglose').classList.toggle('hidden', !conAIU);
+        document.getElementById('valorAdministrativoRow').classList.toggle('hidden', !conAIU);
+        document.getElementById('valorImprevistosRow').classList.toggle('hidden', !conAIU);
+        document.getElementById('valorUtilidadRow').classList.toggle('hidden', !conAIU);
+        document.getElementById('valorAIURow').classList.toggle('hidden', !conAIU);
         calcularCotizacion();
     } catch (error) {
         console.error('Error al alternar AIU:', error);
@@ -56,12 +49,10 @@ function toggleAIU() {
 
 function toggleAIUFields() {
     try {
-        const moneda = document.getElementById('moneda');
-        if (!moneda) throw new Error("No se encontró el elemento 'moneda'");
+        const moneda = document.getElementById('moneda').value;
         const conAIUField = document.getElementById('conAIUField');
-        if (!conAIUField) throw new Error("No se encontró el elemento 'conAIUField'");
-        conAIUField.classList.toggle('hidden', moneda.value !== 'COP');
-        if (moneda.value !== 'COP') {
+        conAIUField.classList.toggle('hidden', moneda !== 'COP');
+        if (moneda !== 'COP') {
             document.getElementById('conAIU').checked = false;
             toggleAIU();
         }
@@ -73,12 +64,10 @@ function toggleAIUFields() {
 
 function actualizarTasaCambio() {
     try {
-        const moneda = document.getElementById('moneda');
-        if (!moneda) throw new Error("No se encontró el elemento 'moneda'");
+        const moneda = document.getElementById('moneda').value;
         const tasaCambioInput = document.getElementById('tasaCambio');
-        if (!tasaCambioInput) throw new Error("No se encontró el elemento 'tasaCambio'");
-        tasaCambioInput.disabled = moneda.value === 'COP';
-        tasaCambioInput.value = moneda.value === 'COP' ? 1 : tasaCambioInput.value || 4000;
+        tasaCambioInput.disabled = moneda === 'COP';
+        tasaCambioInput.value = moneda === 'COP' ? 1 : tasaCambioInput.value || 4000;
         calcularCotizacion();
     } catch (error) {
         console.error('Error al actualizar tasa de cambio:', error);
@@ -89,17 +78,14 @@ function actualizarTasaCambio() {
 function calcularCotizacion() {
     try {
         const tabla = document.getElementById('tablaItemsCotizacion');
-        if (!tabla) throw new Error("No se encontró el elemento 'tablaItemsCotizacion'");
         const filas = tabla.getElementsByTagName('tbody')[0].rows;
         let subtotalGeneral = 0;
         for (let fila of filas) {
             const cantidad = parseFloat(fila.querySelector('.cantidad').value) || 0;
             const precio = parseFloat(fila.querySelector('.precioUnitario').value) || 0;
             if (cantidad <= 0) {
-                const cantidadError = document.getElementById('cantidadError');
-                if (!cantidadError) throw new Error("No se encontró el elemento 'cantidadError'");
-                cantidadError.classList.add('active');
-                cantidadError.textContent = 'La cantidad debe ser mayor a 0.';
+                document.getElementById('cantidadError').classList.add('active');
+                document.getElementById('cantidadError').textContent = 'La cantidad debe ser mayor a 0.';
                 return;
             }
             const subtotal = cantidad * precio;
@@ -149,11 +135,8 @@ function calcularCotizacion() {
 
 function toggleTiempoImportacion() {
     try {
-        const importacion = document.getElementById('importacion');
-        if (!importacion) throw new Error("No se encontró el elemento 'importacion'");
-        const tiempoImportacionField = document.getElementById('tiempoImportacionField');
-        if (!tiempoImportacionField) throw new Error("No se encontró el elemento 'tiempoImportacionField'");
-        tiempoImportacionField.classList.toggle('hidden', importacion.value === 'No');
+        const importacion = document.getElementById('importacion').value;
+        document.getElementById('tiempoImportacionField').classList.toggle('hidden', importacion === 'No');
         calcularFechaLlegadaMaterial();
     } catch (error) {
         console.error('Error al alternar tiempo de importación:', error);
@@ -165,7 +148,6 @@ function calcularFechaLlegadaMaterial() {
     try {
         const fechaAnticipo = document.getElementById('fechaAnticipo').value;
         const fechaLlegadaInput = document.getElementById('fechaLlegadaMaterial');
-        if (!fechaLlegadaInput) throw new Error("No se encontró el elemento 'fechaLlegadaMaterial'");
         if (!fechaAnticipo) {
             fechaLlegadaInput.value = '';
             calcularFechaFinal();
@@ -190,7 +172,6 @@ function calcularFechaFinal() {
     try {
         const fechaLlegada = document.getElementById('fechaLlegadaMaterial').value;
         const fechaFinalInput = document.getElementById('fechaFinal');
-        if (!fechaFinalInput) throw new Error("No se encontró el elemento 'fechaFinal'");
         if (!fechaLlegada) {
             fechaFinalInput.value = '';
             return;
@@ -207,30 +188,15 @@ function calcularFechaFinal() {
     }
 }
 
-async function actualizarConsecutivo() {
+function actualizarConsecutivo() {
     try {
-        if (typeof supabase === 'undefined') {
-            throw new Error('Supabase no está definido. Verifica que supabase.js esté cargado correctamente.');
-        }
-
-        const { data: cotizaciones, error } = await supabase
-            .from('cotizaciones')
-            .select('consecutivo')
-            .order('consecutivo', { ascending: false })
-            .limit(1);
-
-        if (error) throw new Error('Error al obtener el último consecutivo: ' + error.message);
-
-        let ultimoConsecutivo = 25040000;
-        if (cotizaciones && cotizaciones.length > 0) {
-            const ultimo = cotizaciones[0].consecutivo;
-            ultimoConsecutivo = parseInt(ultimo.replace('SEL', '')) || ultimoConsecutivo;
-        }
-
+        const cotizaciones = JSON.parse(localStorage.getItem('cotizaciones') || '[]');
+        const ultimoConsecutivo = cotizaciones.reduce((max, cot) => {
+            const num = parseInt(cot.consecutivo.replace('SEL', '')) || 0;
+            return Math.max(max, num);
+        }, 25040000);
         const nuevoConsecutivo = `SEL${ultimoConsecutivo + 1}`;
-        const consecutivoElement = document.getElementById('consecutivo');
-        if (!consecutivoElement) throw new Error("No se encontró el elemento 'consecutivo'");
-        consecutivoElement.textContent = nuevoConsecutivo;
+        document.getElementById('consecutivo').textContent = nuevoConsecutivo;
         return nuevoConsecutivo;
     } catch (error) {
         console.error('Error al actualizar consecutivo:', error);
@@ -239,72 +205,35 @@ async function actualizarConsecutivo() {
     }
 }
 
-async function guardarCotizacion() {
+function guardarCotizacion() {
     try {
-        if (typeof supabase === 'undefined') {
-            throw new Error('Supabase no está definido. Verifica que supabase.js esté cargado correctamente.');
-        }
+        const consecutivo = document.getElementById('consecutivo').textContent;
+        const nombreCliente = document.getElementById('nombreCliente').value || 'Cliente Desconocido';
+        const proyecto = document.getElementById('proyecto').value || 'Proyecto Sin Nombre';
+        const descripcion = document.getElementById('descripcion').value || '';
+        const moneda = document.getElementById('moneda').value;
+        const tasaCambio = parseFloat(document.getElementById('tasaCambio').value) || 1;
+        const conAIU = document.getElementById('conAIU').checked;
+        const administrativo = parseFloat(document.getElementById('administrativo').value) || 0;
+        const imprevistos = parseFloat(document.getElementById('imprevistos').value) || 0;
+        const utilidad = parseFloat(document.getElementById('utilidad').value) || 0;
+        const formaPago = document.getElementById('formaPago').value;
+        const porcentajeAnticipo = parseFloat(document.getElementById('porcentajeAnticipo').value) || 0;
+        const fechaAnticipo = document.getElementById('fechaAnticipo').value || '';
+        const importacion = document.getElementById('importacion').value;
+        const tiempoImportacion = parseInt(document.getElementById('tiempoImportacion').value) || 0;
+        const fechaLlegadaMaterial = document.getElementById('fechaLlegadaMaterial').value || '';
+        const tiempoPlaneacion = parseFloat(document.getElementById('tiempoPlaneacion').value) || 0;
+        const tiempoFabricacionDespacho = parseFloat(document.getElementById('tiempoFabricacionDespacho').value) || 0;
+        const tiempoInstalacion = parseFloat(document.getElementById('tiempoInstalacion').value) || 0;
+        const fechaFinal = document.getElementById('fechaFinal').value || '';
 
-        const consecutivo = await actualizarConsecutivo();
-        const nombreClienteElement = document.getElementById('nombreCliente');
-        const proyectoElement = document.getElementById('proyecto');
-        const descripcionElement = document.getElementById('descripcion');
-        const monedaElement = document.getElementById('moneda');
-        const tasaCambioElement = document.getElementById('tasaCambio');
-        const conAIUElement = document.getElementById('conAIU');
-        const administrativoElement = document.getElementById('administrativo');
-        const imprevistosElement = document.getElementById('imprevistos');
-        const utilidadElement = document.getElementById('utilidad');
-        const formaPagoElement = document.getElementById('formaPago');
-        const porcentajeAnticipoElement = document.getElementById('porcentajeAnticipo');
-        const fechaAnticipoElement = document.getElementById('fechaAnticipo');
-        const importacionElement = document.getElementById('importacion');
-        const tiempoImportacionElement = document.getElementById('tiempoImportacion');
-        const fechaLlegadaMaterialElement = document.getElementById('fechaLlegadaMaterial');
-        const tiempoPlaneacionElement = document.getElementById('tiempoPlaneacion');
-        const tiempoFabricacionDespachoElement = document.getElementById('tiempoFabricacionDespacho');
-        const tiempoInstalacionElement = document.getElementById('tiempoInstalacion');
-        const fechaFinalElement = document.getElementById('fechaFinal');
-        const valorAnticipoElement = document.getElementById('valorAnticipo');
-        const precioTotalElement = document.getElementById('precioTotal');
-
-        if (!nombreClienteElement || !proyectoElement || !monedaElement || !tasaCambioElement || !conAIUElement ||
-            !administrativoElement || !imprevistosElement || !utilidadElement || !formaPagoElement ||
-            !porcentajeAnticipoElement || !fechaAnticipoElement || !importacionElement || !tiempoImportacionElement ||
-            !fechaLlegadaMaterialElement || !tiempoPlaneacionElement || !tiempoFabricacionDespachoElement ||
-            !tiempoInstalacionElement || !fechaFinalElement || !valorAnticipoElement || !precioTotalElement) {
-            throw new Error('Uno o más elementos del formulario no se encontraron en el DOM.');
-        }
-
-        const nombreCliente = nombreClienteElement.value || 'Cliente Desconocido';
-        const proyecto = proyectoElement.value || 'Proyecto Sin Nombre';
-        const descripcion = descripcionElement.value || '';
-        const moneda = monedaElement.value;
-        const tasaCambio = parseFloat(tasaCambioElement.value) || 1;
-        const conAIU = conAIUElement.checked;
-        const administrativo = parseFloat(administrativoElement.value) || 0;
-        const imprevistos = parseFloat(imprevistosElement.value) || 0;
-        const utilidad = parseFloat(utilidadElement.value) || 0;
-        const formaPago = formaPagoElement.value;
-        const porcentajeAnticipo = parseFloat(porcentajeAnticipoElement.value) || 0;
-        const fechaAnticipo = fechaAnticipoElement.value || '';
-        const importacion = importacionElement.value === 'Sí';
-        const tiempoImportacion = parseInt(tiempoImportacionElement.value) || 0;
-        const fechaLlegadaMaterial = fechaLlegadaMaterialElement.value || '';
-        const tiempoPlaneacion = parseFloat(tiempoPlaneacionElement.value) || 0;
-        const tiempoFabricacionDespacho = parseFloat(tiempoFabricacionDespachoElement.value) || 0;
-        const tiempoInstalacion = parseFloat(tiempoInstalacionElement.value) || 0;
-        const fechaFinal = fechaFinalElement.value || '';
-        const fechaCreacion = new Date().toISOString().split('T')[0];
-
-        const tabla = document.getElementById('tablaItemsCotizacion');
-        if (!tabla) throw new Error("No se encontró el elemento 'tablaItemsCotizacion'");
-        const tbody = tabla.getElementsByTagName('tbody')[0];
-        const items = Array.from(tbody.rows).map(row => ({
-            descripcion: row.querySelector('.descripcion')?.value || 'Ítem Sin Descripción',
-            unidad: row.querySelector('.unidad')?.value || 'UND',
-            cantidad: parseFloat(row.querySelector('.cantidad')?.value) || 0,
-            precioUnitario: parseFloat(row.querySelector('.precioUnitario')?.value) || 0
+        const tabla = document.getElementById('tablaItemsCotizacion').getElementsByTagName('tbody')[0];
+        const items = Array.from(tabla.rows).map(row => ({
+            descripcion: row.querySelector('.descripcion').value || 'Ítem Sin Descripción',
+            unidad: row.querySelector('.unidad').value,
+            cantidad: parseFloat(row.querySelector('.cantidad').value) || 0,
+            precioUnitario: parseFloat(row.querySelector('.precioUnitario').value) || 0
         }));
 
         if (!items.length || !nombreCliente || !proyecto) {
@@ -312,6 +241,7 @@ async function guardarCotizacion() {
             return;
         }
 
+        const cotizaciones = JSON.parse(localStorage.getItem('cotizaciones') || '[]');
         const cotizacion = {
             consecutivo,
             nombreCliente,
@@ -323,9 +253,10 @@ async function guardarCotizacion() {
             administrativo,
             imprevistos,
             utilidad,
+            items,
             formaPago,
             porcentajeAnticipo,
-            valorAnticipo: parseFloat(valorAnticipoElement.textContent.replace(/[^0-9.]/g, '')) || 0,
+            valorAnticipo: parseFloat(document.getElementById('valorAnticipo').textContent.replace(/[^0-9.]/g, '')) || 0,
             fechaAnticipo,
             importacion,
             tiempoImportacion,
@@ -334,46 +265,18 @@ async function guardarCotizacion() {
             tiempoFabricacionDespacho,
             tiempoInstalacion,
             fechaFinal,
-            fechaCreacion,
-            precioTotal: parseFloat(precioTotalElement.textContent.replace(/[^0-9.]/g, '')) || 0
+            precioTotal: parseFloat(document.getElementById('precioTotal').textContent.replace(/[^0-9.]/g, '')) || 0
         };
 
-        console.log('Cotización a guardar:', cotizacion);
-
-        // Guardar en Supabase
-        const { items: itemsData, ...cotData } = cotizacion;
-        const { data: newCot, error: cotError } = await supabase
-            .from('cotizaciones')
-            .insert([cotData])
-            .select()
-            .single();
-
-        if (cotError) throw new Error('Error al guardar cotización: ' + cotError.message);
-
-        if (itemsData && itemsData.length > 0) {
-            const itemsWithCotId = itemsData.map(item => ({
-                ...item,
-                cotizacion_id: newCot.id
-            }));
-            const { error: itemsError } = await supabase
-                .from('items')
-                .insert(itemsWithCotId);
-
-            if (itemsError) throw new Error('Error al guardar ítems: ' + itemsError.message);
-        }
-
+        cotizaciones.push(cotizacion);
+        localStorage.setItem('cotizaciones', JSON.stringify(cotizaciones));
         showToast('Cotización guardada exitosamente.', 'success');
-        await actualizarConsecutivo();
-        nombreClienteElement.value = '';
-        proyectoElement.value = '';
-        descripcionElement.value = '';
-        tbody.innerHTML = '';
+        actualizarConsecutivo();
+        document.getElementById('nombreCliente').value = '';
+        document.getElementById('proyecto').value = '';
+        document.getElementById('descripcion').value = '';
+        tabla.innerHTML = '';
         calcularCotizacion();
-        if (typeof cargarCotizaciones === 'function') {
-            cargarCotizaciones(); // Actualizar la lista de cotizaciones en la pestaña Consultar
-        } else {
-            console.warn('La función cargarCotizaciones no está definida. Asegúrate de que consultar.js esté cargado.');
-        }
     } catch (error) {
         console.error('Error al guardar cotización:', error);
         showToast('Error al guardar cotización: ' + error.message);
@@ -391,8 +294,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     calcularFechaLlegadaMaterial();
                     calcularFechaFinal();
                 });
-            } else {
-                console.warn(`Elemento con ID '${id}' no encontrado en el DOM.`);
             }
         });
         const importacionSelect = document.getElementById('importacion');
@@ -402,69 +303,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 calcularFechaLlegadaMaterial();
                 calcularFechaFinal();
             });
-        } else {
-            console.warn("Elemento con ID 'importacion' no encontrado en el DOM.");
         }
-
-        // Event listeners adicionales para cálculos automáticos
-        const camposCalculo = ['moneda', 'tasaCambio', 'administrativo', 'imprevistos', 'utilidad', 'porcentajeAnticipo', 'conAIU'];
-        camposCalculo.forEach(id => {
-            const elemento = document.getElementById(id);
-            if (elemento) {
-                elemento.addEventListener('change', calcularCotizacion);
-                elemento.addEventListener('input', calcularCotizacion);
-            } else {
-                console.warn(`Elemento con ID '${id}' no encontrado en el DOM.`);
-            }
-        });
-
-        // Event listener para agregar ítems
-        const agregarItemBtn = document.getElementById('agregarItemCotizacion');
-        if (agregarItemBtn) {
-            agregarItemBtn.addEventListener('click', agregarItemCotizacion);
-        } else {
-            console.warn("Elemento con ID 'agregarItemCotizacion' no encontrado en el DOM.");
-        }
-
-        // Event listener para guardar cotización
-        const cotizacionForm = document.getElementById('cotizacionForm');
-        if (cotizacionForm) {
-            cotizacionForm.addEventListener('submit', async function (e) {
-                e.preventDefault();
-                await guardarCotizacion();
-                $('#cotizacionModal').modal('hide');
-                cotizacionForm.reset();
-            });
-        } else {
-            console.warn("Elemento con ID 'cotizacionForm' no encontrado en el DOM.");
-        }
-
-        // Inicializar consecutivo y cálculos
-        if (typeof supabase !== 'undefined') {
-            actualizarConsecutivo();
-        } else {
-            console.error('Supabase no está definido al inicializar. No se puede actualizar el consecutivo.');
-            showToast('Error: No se pudo conectar con la base de datos. Verifica la configuración de Supabase.');
-        }
-        calcularCotizacion();
     } catch (error) {
-        console.error('Error al inicializar listeners:', error);
-        showToast('Error al configurar la página: ' + error.message);
+        console.error('Error al inicializar listeners de fechas:', error);
+        showToast('Error al configurar cálculos de fechas: ' + error.message);
     }
 });
-
-function formatCurrency(value, currency = 'COP') {
-    return new Intl.NumberFormat('es-CO', {
-        style: 'currency',
-        currency: currency,
-        minimumFractionDigits: 0
-    }).format(value);
-}
-
-function showToast(message, type = 'error') {
-    const toast = document.createElement('div');
-    toast.className = `toast ${type}`;
-    toast.textContent = message;
-    document.body.appendChild(toast);
-    setTimeout(() => toast.remove(), 3000);
-}
