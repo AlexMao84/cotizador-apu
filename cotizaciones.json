@@ -1,1 +1,10 @@
-
+[
+    {
+        "consecutivo": "SEL25040001",
+        "nombreCliente": "Cliente 1",
+        "proyecto": "Proyecto 1",
+        "pdfPath": "cotizaciones_pdf/cotizacion_SEL25040001.pdf",
+        ...
+    },
+    ...
+]
