@@ -1,4 +1,3 @@
-
 document.addEventListener('DOMContentLoaded', async () => {
     // Definir todas las constantes al inicio del bloque
     const GITHUB_TOKEN = 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; // Reemplaza con tu token de GitHub
@@ -7,6 +6,22 @@ document.addEventListener('DOMContentLoaded', async () => {
     const COTIZACIONES_JSON_PATH = cotizaciones.json; // Ruta del archivo JSON en el repositorio
     const PDF_FOLDER = cotizaciones_pdf; // Carpeta para los PDFs en el repositorio
 
+
+    // Función para inicializar o actualizar listeners de los elementos editables
+    function inicializarListenersEditables() {
+        const inputsEditables = document.querySelectorAll('.editable');
+        inputsEditables.forEach(input => {
+            input.removeEventListener('input', () => window.calcularCotizacion()); // Evitar duplicados
+            input.addEventListener('input', () => {
+                if (typeof window.calcularCotizacion === 'function') {
+                    window.calcularCotizacion();
+                } else {
+                    console.error('calcularCotizacion no está definida al editar.');
+                    showToast('Error: calcularCotizacion no está definida.');
+                }
+            });
+        });
+    }
 
     // Definir todas las funciones dentro del bloque
     async function fetchCotizacionesFromGitHub() {
@@ -77,9 +92,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 <td class="subtotal"></td>
                 <td><button class="delete-btn" onclick="eliminarItemCotizacion(this)" title="Eliminar ítem"><i class="fas fa-trash"></i></button></td>
             `;
-            newRow.querySelectorAll('.editable').forEach(input => {
-                input.addEventListener('input', () => window.calcularCotizacion());
-            });
+            inicializarListenersEditables();
             window.calcularCotizacion();
         } catch (error) {
             console.error('Error al agregar ítem de cotización:', error);
@@ -550,21 +563,62 @@ document.addEventListener('DOMContentLoaded', async () => {
                     <td class="subtotal"></td>
                     <td><button class="delete-btn" onclick="eliminarItemCotizacion(this)" title="Eliminar ítem"><i class="fas fa-trash"></i></button></td>
                 `;
-                newRow.querySelectorAll('.editable').forEach(input => {
-                    input.addEventListener('input', () => window.calcularCotizacion());
-                });
             });
-
-            // Llamar a calcularCotizacion después de cargar los ítems
-            if (typeof window.calcularCotizacion === 'function') {
-                window.calcularCotizacion();
-            } else {
-                console.error('calcularCotizacion no está definida al transferir APU.');
-                showToast('Error: calcularCotizacion no está definida.');
-            }
+            inicializarListenersEditables();
+            window.calcularCotizacion();
         } catch (error) {
             console.error('Error al transferir APU a Cotización:', error);
             showToast('Error al transferir APU a Cotización: ' + error.message);
+        }
+    }
+
+    function cargarCotizacion(cotizacionData) {
+        try {
+            document.getElementById('nombreCliente').value = cotizacionData.nombreCliente || '';
+            document.getElementById('proyecto').value = cotizacionData.proyecto || '';
+            document.getElementById('descripcion').value = cotizacionData.descripcion || '';
+            document.getElementById('moneda').value = cotizacionData.moneda || 'COP';
+            document.getElementById('tasaCambio').value = cotizacionData.tasaCambio || 1;
+            document.getElementById('conAIU').checked = cotizacionData.conAIU || false;
+            document.getElementById('administrativo').value = cotizacionData.administrativo || 0;
+            document.getElementById('imprevistos').value = cotizacionData.imprevistos || 0;
+            document.getElementById('utilidad').value = cotizacionData.utilidad || 0;
+            document.getElementById('formaPago').value = cotizacionData.formaPago || '';
+            document.getElementById('porcentajeAnticipo').value = cotizacionData.porcentajeAnticipo || 0;
+            document.getElementById('fechaAnticipo').value = cotizacionData.fechaAnticipo || '';
+            document.getElementById('importacion').value = cotizacionData.importacion || 'No';
+            document.getElementById('tiempoImportacion').value = cotizacionData.tiempoImportacion || 0;
+            document.getElementById('fechaLlegadaMaterial').value = cotizacionData.fechaLlegadaMaterial || '';
+            document.getElementById('tiempoPlaneacion').value = cotizacionData.tiempoPlaneacion || 0;
+            document.getElementById('tiempoFabricacionDespacho').value = cotizacionData.tiempoFabricacionDespacho || 0;
+            document.getElementById('tiempoInstalacion').value = cotizacionData.tiempoInstalacion || 0;
+            document.getElementById('fechaFinal').value = cotizacionData.fechaFinal || '';
+
+            const tabla = document.getElementById('tablaItemsCotizacion').getElementsByTagName('tbody')[0];
+            tabla.innerHTML = '';
+            (cotizacionData.items || []).forEach(item => {
+                const newRow = tabla.insertRow();
+                newRow.innerHTML = `
+                    <td><input type="text" class="editable descripcion" value="${item.descripcion || 'Ítem Sin Descripción'}" required></td>
+                    <td><select class="editable unidad">
+                        <option value="UND"${item.unidad === 'UND' ? ' selected' : ''}>UND</option>
+                        <option value="M2"${item.unidad === 'M2' ? ' selected' : ''}>M2</option>
+                        <option value="ML"${item.unidad === 'ML' ? ' selected' : ''}>ML</option>
+                    </select></td>
+                    <td><input type="number" class="editable cantidad" value="${item.cantidad || 1}" min="0" step="0.01" required></td>
+                    <td><input type="number" class="editable precioUnitario" value="${item.precioUnitario || 0}" min="0" step="0.01" required></td>
+                    <td class="subtotal"></td>
+                    <td><button class="delete-btn" onclick="eliminarItemCotizacion(this)" title="Eliminar ítem"><i class="fas fa-trash"></i></button></td>
+                `;
+            });
+            inicializarListenersEditables();
+            toggleAIUFields();
+            actualizarTasaCambio();
+            toggleTiempoImportacion();
+            window.calcularCotizacion();
+        } catch (error) {
+            console.error('Error al cargar cotización:', error);
+            showToast('Error al cargar cotización: ' + error.message);
         }
     }
 
@@ -579,7 +633,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     window.calcularFechaLlegadaMaterial = calcularFechaLlegadaMaterial;
     window.calcularFechaFinal = calcularFechaFinal;
     window.guardarCotizacion = guardarCotizacion;
-    window.transferirAPUACotizacion = transferirAPUACotizacion; // Exponer la nueva función
+    window.transferirAPUACotizacion = transferirAPUACotizacion;
+    window.cargarCotizacion = cargarCotizacion; // Exponer la nueva función
 
     // Configurar listeners de eventos
     try {
@@ -602,12 +657,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 calcularFechaFinal();
             });
         }
-
-        // Añadir listeners a los inputs editables existentes
-        const inputsEditables = document.querySelectorAll('.editable');
-        inputsEditables.forEach(input => {
-            input.addEventListener('input', () => window.calcularCotizacion());
-        });
+        inicializarListenersEditables(); // Inicializar listeners al cargar la página
     } catch (error) {
         console.error('Error al inicializar listeners de fechas:', error);
         showToast('Error al configurar cálculos de fechas: ' + error.message);
