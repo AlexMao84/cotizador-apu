@@ -251,7 +251,8 @@ function guardarCotizacion() {
             descripcion: row.querySelector('.descripcion').value || 'Ítem Sin Descripción',
             unidad: row.querySelector('.unidad').value,
             cantidad: parseFloat(row.querySelector('.cantidad').value) || 0,
-            precioUnitario: parseFloat(row.querySelector('.precioUnitario').value) || 0
+            precioUnitario: parseFloat(row.querySelector('.precioUnitario').value) || 0,
+            subtotal: (parseFloat(row.querySelector('.cantidad').value) || 0) * (parseFloat(row.querySelector('.precioUnitario').value) || 0)
         }));
 
         if (!items.length || !nombreCliente || !proyecto) {
@@ -261,38 +262,132 @@ function guardarCotizacion() {
 
         // Generar PDF
         const { jsPDF } = window.jspdf;
-        const doc = new jsPDF();
-        let yPos = 10;
-        doc.text(`Cotización #${consecutivo}`, 10, yPos);
-        yPos += 10;
-        doc.text(`Cliente: ${nombreCliente}`, 10, yPos);
-        yPos += 10;
-        doc.text(`Proyecto: ${proyecto}`, 10, yPos);
-        yPos += 10;
-        doc.text(`Descripción: ${descripcion}`, 10, yPos);
-        yPos += 10;
-        doc.text('Ítems:', 10, yPos);
-        yPos += 10;
-        items.forEach((item, index) => {
-            doc.text(`${index + 1}. ${item.descripcion} - ${item.unidad} - Cantidad: ${item.cantidad} - Precio Unitario: ${formatCurrency(item.precioUnitario, moneda)}`, 10, yPos);
-            yPos += 10;
+        const doc = new jsPDF({
+            orientation: 'portrait',
+            unit: 'mm',
+            format: 'a4'
         });
-        doc.text(`Precio Total: ${document.getElementById('precioTotal').textContent}`, 10, yPos);
-        yPos += 10;
-        if (conAIU) {
-            doc.text(`Administración: ${document.getElementById('valorAdministrativo').textContent}`, 10, yPos);
-            yPos += 10;
-            doc.text(`Imprevistos: ${document.getElementById('valorImprevistos').textContent}`, 10, yPos);
-            yPos += 10;
-            doc.text(`Utilidad: ${document.getElementById('valorUtilidad').textContent}`, 10, yPos);
-            yPos += 10;
-            doc.text(`Total AIU: ${document.getElementById('valorAIU').textContent}`, 10, yPos);
-            yPos += 10;
-        }
-        doc.text(`IVA: ${document.getElementById('iva').textContent}`, 10, yPos);
-        yPos += 10;
-        doc.text(`Fecha Final Estimada: ${fechaFinal || 'No especificada'}`, 10, yPos);
 
+        // Configuración de márgenes y estilos
+        const marginLeft = 10;
+        const marginTop = 10;
+        let yPos = marginTop;
+
+        // Encabezado
+        doc.setFontSize(16);
+        doc.setFont('helvetica', 'bold');
+        doc.text('Cotización', 105, yPos, { align: 'center' });
+        yPos += 10;
+        doc.setFontSize(12);
+        doc.text(`No. ${consecutivo}`, 105, yPos, { align: 'center' });
+        yPos += 10;
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'normal');
+        const today = new Date().toISOString().split('T')[0];
+        doc.text(`Fecha: ${today}`, 190, yPos, { align: 'right' });
+        yPos += 10;
+
+        // Información del Cliente y Proyecto
+        doc.setFontSize(12);
+        doc.setFont('helvetica', 'bold');
+        doc.text('Información General', marginLeft, yPos);
+        yPos += 5;
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'normal');
+        doc.text(`Cliente: ${nombreCliente}`, marginLeft, yPos);
+        yPos += 5;
+        doc.text(`Proyecto: ${proyecto}`, marginLeft, yPos);
+        yPos += 5;
+        doc.text(`Descripción: ${descripcion || 'Sin descripción'}`, marginLeft, yPos);
+        yPos += 10;
+
+        // Tabla de Ítems
+        doc.setFontSize(12);
+        doc.setFont('helvetica', 'bold');
+        doc.text('Ítems de la Cotización', marginLeft, yPos);
+        yPos += 5;
+        const itemData = items.map((item, index) => [
+            (index + 1).toString(),
+            item.descripcion,
+            item.unidad,
+            item.cantidad.toFixed(2),
+            formatCurrency(item.precioUnitario, moneda),
+            formatCurrency(item.subtotal, moneda)
+        ]);
+        doc.autoTable({
+            startY: yPos,
+            head: [['#', 'Descripción', 'Unidad', 'Cantidad', 'Precio Unitario', 'Subtotal']],
+            body: itemData,
+            theme: 'grid',
+            styles: { fontSize: 8, cellPadding: 2 },
+            headStyles: { fillColor: [50, 50, 50] },
+            margin: { left: marginLeft, right: marginLeft }
+        });
+        yPos = doc.lastAutoTable.finalY + 10;
+
+        // Costos Adicionales (AIU, IVA, Total)
+        doc.setFontSize(12);
+        doc.setFont('helvetica', 'bold');
+        doc.text('Resumen de Costos', marginLeft, yPos);
+        yPos += 5;
+        const costData = [
+            ['Subtotal', formatCurrency(parseFloat(document.getElementById('precioUnitarioCantidad').textContent.replace(/[^0-9.]/g, '')) || 0, moneda)]
+        ];
+        if (conAIU) {
+            costData.push(['Administración', formatCurrency(parseFloat(document.getElementById('valorAdministrativo').textContent.replace(/[^0-9.]/g, '')) || 0, moneda)]);
+            costData.push(['Imprevistos', formatCurrency(parseFloat(document.getElementById('valorImprevistos').textContent.replace(/[^0-9.]/g, '')) || 0, moneda)]);
+            costData.push(['Utilidad', formatCurrency(parseFloat(document.getElementById('valorUtilidad').textContent.replace(/[^0-9.]/g, '')) || 0, moneda)]);
+            costData.push(['Total AIU', formatCurrency(parseFloat(document.getElementById('valorAIU').textContent.replace(/[^0-9.]/g, '')) || 0, moneda)]);
+        }
+        costData.push(['IVA (19%)', formatCurrency(parseFloat(document.getElementById('iva').textContent.replace(/[^0-9.]/g, '')) || 0, moneda)]);
+        costData.push(['Total', formatCurrency(parseFloat(document.getElementById('precioTotal').textContent.replace(/[^0-9.]/g, '')) || 0, moneda)]);
+        doc.autoTable({
+            startY: yPos,
+            head: [['Concepto', 'Valor']],
+            body: costData,
+            theme: 'grid',
+            styles: { fontSize: 8, cellPadding: 2 },
+            headStyles: { fillColor: [50, 50, 50] },
+            margin: { left: marginLeft, right: marginLeft }
+        });
+        yPos = doc.lastAutoTable.finalY + 10;
+
+        // Anticipo
+        doc.setFontSize(12);
+        doc.setFont('helvetica', 'bold');
+        doc.text('Anticipo', marginLeft, yPos);
+        yPos += 5;
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'normal');
+        doc.text(`Porcentaje: ${porcentajeAnticipo}%`, marginLeft, yPos);
+        yPos += 5;
+        doc.text(`Valor: ${formatCurrency(parseFloat(document.getElementById('valorAnticipo').textContent.replace(/[^0-9.]/g, '')) || 0, moneda)}`, marginLeft, yPos);
+        yPos += 10;
+
+        // Fechas
+        doc.setFontSize(12);
+        doc.setFont('helvetica', 'bold');
+        doc.text('Cronograma', marginLeft, yPos);
+        yPos += 5;
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'normal');
+        doc.text(`Fecha de Anticipo: ${fechaAnticipo || 'No especificada'}`, marginLeft, yPos);
+        yPos += 5;
+        doc.text(`Fecha de Llegada de Material: ${fechaLlegadaMaterial || 'No especificada'}`, marginLeft, yPos);
+        yPos += 5;
+        doc.text(`Fecha Final Estimada: ${fechaFinal || 'No especificada'}`, marginLeft, yPos);
+        yPos += 10;
+
+        // Forma de Pago
+        doc.setFontSize(12);
+        doc.setFont('helvetica', 'bold');
+        doc.text('Forma de Pago', marginLeft, yPos);
+        yPos += 5;
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'normal');
+        doc.text(`Método: ${formaPago}`, marginLeft, yPos);
+
+        // Guardar el PDF
         const pdfFileName = `cotizacion_${consecutivo}.pdf`;
         doc.save(pdfFileName);
 
