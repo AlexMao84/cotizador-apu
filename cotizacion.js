@@ -1,3 +1,4 @@
+
 document.addEventListener('DOMContentLoaded', async () => {
     // Definir todas las constantes al inicio del bloque
     const GITHUB_TOKEN = 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; // Reemplaza con tu token de GitHub
@@ -75,8 +76,17 @@ document.addEventListener('DOMContentLoaded', async () => {
                 <td class="subtotal"></td>
                 <td><button class="delete-btn" onclick="eliminarItemCotizacion(this)" title="Eliminar ítem"><i class="fas fa-trash"></i></button></td>
             `;
-            newRow.querySelectorAll('.editable').forEach(input => input.addEventListener('input', calcularCotizacion));
-            calcularCotizacion();
+            newRow.querySelectorAll('.editable').forEach(input => {
+                input.addEventListener('input', () => {
+                    if (typeof window.calcularCotizacion === 'function') {
+                        window.calcularCotizacion();
+                    } else {
+                        console.error('calcularCotizacion no está definida al intentar agregar un ítem.');
+                        showToast('Error: calcularCotizacion no está definida.');
+                    }
+                });
+            });
+            window.calcularCotizacion();
         } catch (error) {
             console.error('Error al agregar ítem de cotización:', error);
             showToast('Error al agregar ítem: ' + error.message);
@@ -86,7 +96,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     function eliminarItemCotizacion(button) {
         try {
             button.closest('tr').remove();
-            calcularCotizacion();
+            window.calcularCotizacion();
         } catch (error) {
             console.error('Error al eliminar ítem de cotización:', error);
             showToast('Error al eliminar ítem: ' + error.message);
@@ -101,7 +111,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             document.getElementById('valorImprevistosRow').classList.toggle('hidden', !conAIU);
             document.getElementById('valorUtilidadRow').classList.toggle('hidden', !conAIU);
             document.getElementById('valorAIURow').classList.toggle('hidden', !conAIU);
-            calcularCotizacion();
+            window.calcularCotizacion();
         } catch (error) {
             console.error('Error al alternar AIU:', error);
             showToast('Error al alternar AIU: ' + error.message);
@@ -129,7 +139,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             const tasaCambioInput = document.getElementById('tasaCambio');
             tasaCambioInput.disabled = moneda === 'COP';
             tasaCambioInput.value = moneda === 'COP' ? 1 : tasaCambioInput.value || 4000;
-            calcularCotizacion();
+            window.calcularCotizacion();
         } catch (error) {
             console.error('Error al actualizar tasa de cambio:', error);
             showToast('Error al actualizar tasa de cambio: ' + error.message);
@@ -524,13 +534,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 
-    // Exponer funciones necesarias globalmente (si son referenciadas en el HTML)
+    // Exponer funciones necesarias globalmente
     window.agregarItemCotizacion = agregarItemCotizacion;
     window.eliminarItemCotizacion = eliminarItemCotizacion;
     window.toggleAIU = toggleAIU;
     window.toggleAIUFields = toggleAIUFields;
     window.actualizarTasaCambio = actualizarTasaCambio;
-    window.calcularCotizacion = calcularCotizacion;
+    window.calcularCotizacion = calcularCotizacion; // Asegurar que esté expuesta
     window.toggleTiempoImportacion = toggleTiempoImportacion;
     window.calcularFechaLlegadaMaterial = calcularFechaLlegadaMaterial;
     window.calcularFechaFinal = calcularFechaFinal;
@@ -557,6 +567,19 @@ document.addEventListener('DOMContentLoaded', async () => {
                 calcularFechaFinal();
             });
         }
+
+        // Añadir listeners a los inputs editables existentes (para edición)
+        const inputsEditables = document.querySelectorAll('.editable');
+        inputsEditables.forEach(input => {
+            input.addEventListener('input', () => {
+                if (typeof window.calcularCotizacion === 'function') {
+                    window.calcularCotizacion();
+                } else {
+                    console.error('calcularCotizacion no está definida al editar un ítem.');
+                    showToast('Error: calcularCotizacion no está definida.');
+                }
+            });
+        });
     } catch (error) {
         console.error('Error al inicializar listeners de fechas:', error);
         showToast('Error al configurar cálculos de fechas: ' + error.message);
