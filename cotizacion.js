@@ -1,8 +1,8 @@
 const GITHUB_TOKEN = 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; // Reemplaza con tu token de GitHub
-const REPO_OWNER = alexmao84; // Reemplaza con tu usuario de GitHub
-const REPO_NAME = cotizador-apu; // Reemplaza con el nombre de tu repositorio
-const COTIZACIONES_JSON_PATH = cotizaciones.json; // Ruta del archivo JSON en el repositorio
-const PDF_FOLDER = cotizaciones_pdf; // Carpeta para los PDFs en el repositorio
+const REPO_OWNER = 'alexmao84'; // Reemplaza con tu usuario de GitHub
+const REPO_NAME = 'cotizador-apu'; // Reemplaza con el nombre de tu repositorio
+const COTIZACIONES_JSON_PATH = 'cotizaciones.json'; // Ruta del archivo JSON en el repositorio
+const PDF_FOLDER = 'cotizaciones_pdf'; // Carpeta para los PDFs en el repositorio
 
 async function fetchCotizacionesFromGitHub() {
     try {
