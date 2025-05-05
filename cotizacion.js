@@ -243,7 +243,20 @@ function calcularFechaFinal() {
 async function actualizarConsecutivo() {
     try {
         const { content } = await fetchCotizacionesFromGitHub();
-        const cotizaciones = JSON.parse(atob(content)) || [];
+        let cotizaciones = [];
+        
+        // Verificar si el contenido base64 es válido
+        if (content && typeof content === 'string' && content.trim().length > 0) {
+            try {
+                cotizaciones = JSON.parse(atob(content));
+                if (!Array.isArray(cotizaciones)) {
+                    cotizaciones = [];
+                }
+            } catch (decodeError) {
+                console.warn('Error al decodificar base64, inicializando cotizaciones vacías:', decodeError);
+                cotizaciones = [];
+            }
+        }
 
         let ultimoConsecutivo = 25040000;
         if (cotizaciones.length > 0) {
@@ -424,7 +437,7 @@ async function guardarCotizacion() {
         doc.text(`Método: ${formaPago}`, marginLeft, yPos);
 
         const pdfFileName = `cotizacion_${consecutivo}.pdf`;
-        const pdfBase64 = doc.output('datauristring').split(',')[1]; // Convertir PDF a base64
+        const pdfBase64 = doc.output('datauristring').split(',')[1];
 
         // Guardar el PDF en GitHub
         await saveFileToGitHub(
@@ -437,7 +450,18 @@ async function guardarCotizacion() {
         doc.save(pdfFileName);
 
         const { content, sha } = await fetchCotizacionesFromGitHub();
-        const cotizaciones = JSON.parse(atob(content)) || [];
+        let cotizaciones = [];
+        if (content && typeof content === 'string' && content.trim().length > 0) {
+            try {
+                cotizaciones = JSON.parse(atob(content));
+                if (!Array.isArray(cotizaciones)) {
+                    cotizaciones = [];
+                }
+            } catch (decodeError) {
+                console.warn('Error al decodificar base64, inicializando cotizaciones vacías:', decodeError);
+                cotizaciones = [];
+            }
+        }
 
         const cotizacion = {
             consecutivo,
