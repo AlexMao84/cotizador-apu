@@ -1,4 +1,4 @@
-const GITHUB_TOKEN = 'TU_PERSONAL_ACCESS_TOKEN'; // Reemplaza con tu token de GitHub
+const GITHUB_TOKEN = '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'; // Reemplaza con tu token de GitHub
 const REPO_OWNER = 'alexmao84'; // Reemplaza con tu usuario de GitHub
 const REPO_NAME = 'cotizador-apu'; // Reemplaza con el nombre de tu repositorio
 const COTIZACIONES_JSON_PATH = 'cotizaciones.json'; // Ruta del archivo JSON en el repositorio
