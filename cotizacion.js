@@ -1,3 +1,55 @@
+const GITHUB_TOKEN = 'TU_PERSONAL_ACCESS_TOKEN'; // Reemplaza con tu token de GitHub
+const REPO_OWNER = 'alexmao84'; // Reemplaza con tu usuario de GitHub
+const REPO_NAME = 'cotizador-apu'; // Reemplaza con el nombre de tu repositorio
+const COTIZACIONES_JSON_PATH = 'cotizaciones.json'; // Ruta del archivo JSON en el repositorio
+const PDF_FOLDER = 'cotizaciones_pdf'; // Carpeta para los PDFs en el repositorio
+
+async function fetchCotizacionesFromGitHub() {
+    try {
+        const response = await fetch(`https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${COTIZACIONES_JSON_PATH}`, {
+            headers: {
+                'Authorization': `token ${GITHUB_TOKEN}`,
+                'Accept': 'application/vnd.github.v3+json'
+            }
+        });
+        if (response.status === 404) {
+            // Si el archivo no existe, inicializamos un JSON vacío
+            return { content: btoa(JSON.stringify([])), sha: null };
+        }
+        const data = await response.json();
+        return { content: data.content, sha: data.sha };
+    } catch (error) {
+        console.error('Error al cargar cotizaciones desde GitHub:', error);
+        showToast('Error al cargar cotizaciones desde GitHub: ' + error.message);
+        return { content: btoa(JSON.stringify([])), sha: null }; // Fallback
+    }
+}
+
+async function saveFileToGitHub(path, content, message, sha = null) {
+    try {
+        const response = await fetch(`https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${path}`, {
+            method: 'PUT',
+            headers: {
+                'Authorization': `token ${GITHUB_TOKEN}`,
+                'Accept': 'application/vnd.github.v3+json'
+            },
+            body: JSON.stringify({
+                message: message,
+                content: content,
+                sha: sha
+            })
+        });
+        if (!response.ok) {
+            throw new Error('Fallo al guardar en GitHub: ' + response.statusText);
+        }
+        return await response.json();
+    } catch (error) {
+        console.error('Error al guardar en GitHub:', error);
+        showToast('Error al guardar en GitHub: ' + error.message);
+        throw error;
+    }
+}
+
 function agregarItemCotizacion() {
     try {
         const tabla = document.getElementById('tablaItemsCotizacion').getElementsByTagName('tbody')[0];
@@ -188,19 +240,12 @@ function calcularFechaFinal() {
     }
 }
 
-function actualizarConsecutivo() {
+async function actualizarConsecutivo() {
     try {
-        // Obtener las cotizaciones de localStorage
-        const cotizaciones = JSON.parse(localStorage.getItem('cotizaciones') || '[]');
-        
-        // Validar que cotizaciones sea un arreglo
-        if (!Array.isArray(cotizaciones)) {
-            throw new Error('Los datos de cotizaciones en localStorage no son un arreglo válido.');
-        }
+        const { content } = await fetchCotizacionesFromGitHub();
+        const cotizaciones = JSON.parse(atob(content)) || [];
 
-        let ultimoConsecutivo = 25040000; // Valor inicial por defecto
-
-        // Si hay cotizaciones, buscar el mayor consecutivo
+        let ultimoConsecutivo = 25040000;
         if (cotizaciones.length > 0) {
             ultimoConsecutivo = cotizaciones
                 .filter(cot => cot && cot.consecutivo && typeof cot.consecutivo === 'string' && cot.consecutivo.startsWith('SEL'))
@@ -210,7 +255,6 @@ function actualizarConsecutivo() {
                 }, 25040000);
         }
 
-        // Generar el nuevo consecutivo
         const nuevoConsecutivo = `SEL${ultimoConsecutivo + 1}`;
         document.getElementById('consecutivo').textContent = nuevoConsecutivo;
         return nuevoConsecutivo;
@@ -223,7 +267,7 @@ function actualizarConsecutivo() {
     }
 }
 
-function guardarCotizacion() {
+async function guardarCotizacion() {
     try {
         const consecutivo = document.getElementById('consecutivo').textContent;
         const nombreCliente = document.getElementById('nombreCliente').value || 'Cliente Desconocido';
@@ -268,12 +312,10 @@ function guardarCotizacion() {
             format: 'a4'
         });
 
-        // Configuración de márgenes y estilos
         const marginLeft = 10;
         const marginTop = 10;
         let yPos = marginTop;
 
-        // Encabezado
         doc.setFontSize(16);
         doc.setFont('helvetica', 'bold');
         doc.text('Cotización', 105, yPos, { align: 'center' });
@@ -287,7 +329,6 @@ function guardarCotizacion() {
         doc.text(`Fecha: ${today}`, 190, yPos, { align: 'right' });
         yPos += 10;
 
-        // Información del Cliente y Proyecto
         doc.setFontSize(12);
         doc.setFont('helvetica', 'bold');
         doc.text('Información General', marginLeft, yPos);
@@ -301,7 +342,6 @@ function guardarCotizacion() {
         doc.text(`Descripción: ${descripcion || 'Sin descripción'}`, marginLeft, yPos);
         yPos += 10;
 
-        // Tabla de Ítems
         doc.setFontSize(12);
         doc.setFont('helvetica', 'bold');
         doc.text('Ítems de la Cotización', marginLeft, yPos);
@@ -325,7 +365,6 @@ function guardarCotizacion() {
         });
         yPos = doc.lastAutoTable.finalY + 10;
 
-        // Costos Adicionales (AIU, IVA, Total)
         doc.setFontSize(12);
         doc.setFont('helvetica', 'bold');
         doc.text('Resumen de Costos', marginLeft, yPos);
@@ -352,7 +391,6 @@ function guardarCotizacion() {
         });
         yPos = doc.lastAutoTable.finalY + 10;
 
-        // Anticipo
         doc.setFontSize(12);
         doc.setFont('helvetica', 'bold');
         doc.text('Anticipo', marginLeft, yPos);
@@ -364,7 +402,6 @@ function guardarCotizacion() {
         doc.text(`Valor: ${formatCurrency(parseFloat(document.getElementById('valorAnticipo').textContent.replace(/[^0-9.]/g, '')) || 0, moneda)}`, marginLeft, yPos);
         yPos += 10;
 
-        // Fechas
         doc.setFontSize(12);
         doc.setFont('helvetica', 'bold');
         doc.text('Cronograma', marginLeft, yPos);
@@ -378,7 +415,6 @@ function guardarCotizacion() {
         doc.text(`Fecha Final Estimada: ${fechaFinal || 'No especificada'}`, marginLeft, yPos);
         yPos += 10;
 
-        // Forma de Pago
         doc.setFontSize(12);
         doc.setFont('helvetica', 'bold');
         doc.text('Forma de Pago', marginLeft, yPos);
@@ -387,11 +423,22 @@ function guardarCotizacion() {
         doc.setFont('helvetica', 'normal');
         doc.text(`Método: ${formaPago}`, marginLeft, yPos);
 
-        // Guardar el PDF
         const pdfFileName = `cotizacion_${consecutivo}.pdf`;
+        const pdfBase64 = doc.output('datauristring').split(',')[1]; // Convertir PDF a base64
+
+        // Guardar el PDF en GitHub
+        await saveFileToGitHub(
+            `${PDF_FOLDER}/${pdfFileName}`,
+            pdfBase64,
+            `Agregar PDF de cotización ${consecutivo}`
+        );
+
+        // Descargar el PDF localmente
         doc.save(pdfFileName);
 
-        const cotizaciones = JSON.parse(localStorage.getItem('cotizaciones') || '[]');
+        const { content, sha } = await fetchCotizacionesFromGitHub();
+        const cotizaciones = JSON.parse(atob(content)) || [];
+
         const cotizacion = {
             consecutivo,
             nombreCliente,
@@ -416,13 +463,24 @@ function guardarCotizacion() {
             tiempoInstalacion,
             fechaFinal,
             precioTotal: parseFloat(document.getElementById('precioTotal').textContent.replace(/[^0-9.]/g, '')) || 0,
-            pdfPath: pdfFileName
+            pdfPath: `${PDF_FOLDER}/${pdfFileName}`
         };
 
         cotizaciones.push(cotizacion);
+
+        // Guardar el JSON actualizado en GitHub
+        await saveFileToGitHub(
+            COTIZACIONES_JSON_PATH,
+            btoa(JSON.stringify(cotizaciones)),
+            `Actualizar cotizaciones.json con nueva cotización ${consecutivo}`,
+            sha
+        );
+
+        // Actualizar localStorage (opcional, por compatibilidad)
         localStorage.setItem('cotizaciones', JSON.stringify(cotizaciones));
+
         showToast('Cotización guardada y PDF generado exitosamente.', 'success');
-        actualizarConsecutivo();
+        await actualizarConsecutivo();
         document.getElementById('nombreCliente').value = '';
         document.getElementById('proyecto').value = '';
         document.getElementById('descripcion').value = '';
@@ -434,9 +492,9 @@ function guardarCotizacion() {
     }
 }
 
-// Inicializar event listeners para cálculos automáticos de fechas
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
     try {
+        await actualizarConsecutivo();
         const camposFecha = ['fechaAnticipo', 'tiempoImportacion', 'tiempoPlaneacion', 'tiempoFabricacionDespacho', 'tiempoInstalacion'];
         camposFecha.forEach(id => {
             const elemento = document.getElementById(id);
