@@ -13,7 +13,6 @@ async function fetchCotizacionesFromGitHub() {
             }
         });
         if (response.status === 404) {
-            // Si el archivo no existe, inicializamos un JSON vacío
             return { content: btoa(JSON.stringify([])), sha: null };
         }
         const data = await response.json();
@@ -21,7 +20,7 @@ async function fetchCotizacionesFromGitHub() {
     } catch (error) {
         console.error('Error al cargar cotizaciones desde GitHub:', error);
         showToast('Error al cargar cotizaciones desde GitHub: ' + error.message);
-        return { content: btoa(JSON.stringify([])), sha: null }; // Fallback
+        return { content: btoa(JSON.stringify([])), sha: null };
     }
 }
 
@@ -40,12 +39,13 @@ async function saveFileToGitHub(path, content, message, sha = null) {
             })
         });
         if (!response.ok) {
-            throw new Error('Fallo al guardar en GitHub: ' + response.statusText);
+            const errorData = await response.json();
+            throw new Error(`Código ${response.status}: ${response.statusText} - ${errorData.message || 'Sin detalles'}`);
         }
         return await response.json();
     } catch (error) {
         console.error('Error al guardar en GitHub:', error);
-        showToast('Error al guardar en GitHub: ' + error.message);
+        showToast(`Error al guardar en GitHub: ${error.message}`);
         throw error;
     }
 }
@@ -245,7 +245,6 @@ async function actualizarConsecutivo() {
         const { content } = await fetchCotizacionesFromGitHub();
         let cotizaciones = [];
         
-        // Verificar si el contenido base64 es válido
         if (content && typeof content === 'string' && content.trim().length > 0) {
             try {
                 cotizaciones = JSON.parse(atob(content));
@@ -512,7 +511,7 @@ async function guardarCotizacion() {
         calcularCotizacion();
     } catch (error) {
         console.error('Error al guardar cotización:', error);
-        showToast('Error al guardar cotización: ' + error.message);
+        showToast(`Error al guardar cotización: ${error.message}`);
     }
 }
 
