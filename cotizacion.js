@@ -7,6 +7,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const COTIZACIONES_JSON_PATH = cotizaciones.json; // Ruta del archivo JSON en el repositorio
     const PDF_FOLDER = cotizaciones_pdf; // Carpeta para los PDFs en el repositorio
 
+
     // Definir todas las funciones dentro del bloque
     async function fetchCotizacionesFromGitHub() {
         try {
@@ -77,14 +78,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 <td><button class="delete-btn" onclick="eliminarItemCotizacion(this)" title="Eliminar ítem"><i class="fas fa-trash"></i></button></td>
             `;
             newRow.querySelectorAll('.editable').forEach(input => {
-                input.addEventListener('input', () => {
-                    if (typeof window.calcularCotizacion === 'function') {
-                        window.calcularCotizacion();
-                    } else {
-                        console.error('calcularCotizacion no está definida al intentar agregar un ítem.');
-                        showToast('Error: calcularCotizacion no está definida.');
-                    }
-                });
+                input.addEventListener('input', () => window.calcularCotizacion());
             });
             window.calcularCotizacion();
         } catch (error) {
@@ -534,17 +528,58 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 
+    function transferirAPUACotizacion(apuData) {
+        try {
+            const tabla = document.getElementById('tablaItemsCotizacion').getElementsByTagName('tbody')[0];
+            tabla.innerHTML = ''; // Limpiar tabla existente
+
+            // Asegurarse de que apuData sea un array
+            const items = Array.isArray(apuData) ? apuData : [];
+
+            items.forEach(item => {
+                const newRow = tabla.insertRow();
+                newRow.innerHTML = `
+                    <td><input type="text" class="editable descripcion" value="${item.descripcion || 'Ítem Sin Descripción'}" required></td>
+                    <td><select class="editable unidad">
+                        <option value="UND"${item.unidad === 'UND' ? ' selected' : ''}>UND</option>
+                        <option value="M2"${item.unidad === 'M2' ? ' selected' : ''}>M2</option>
+                        <option value="ML"${item.unidad === 'ML' ? ' selected' : ''}>ML</option>
+                    </select></td>
+                    <td><input type="number" class="editable cantidad" value="${item.cantidad || 1}" min="0" step="0.01" required></td>
+                    <td><input type="number" class="editable precioUnitario" value="${item.precioUnitario || 0}" min="0" step="0.01" required></td>
+                    <td class="subtotal"></td>
+                    <td><button class="delete-btn" onclick="eliminarItemCotizacion(this)" title="Eliminar ítem"><i class="fas fa-trash"></i></button></td>
+                `;
+                newRow.querySelectorAll('.editable').forEach(input => {
+                    input.addEventListener('input', () => window.calcularCotizacion());
+                });
+            });
+
+            // Llamar a calcularCotizacion después de cargar los ítems
+            if (typeof window.calcularCotizacion === 'function') {
+                window.calcularCotizacion();
+            } else {
+                console.error('calcularCotizacion no está definida al transferir APU.');
+                showToast('Error: calcularCotizacion no está definida.');
+            }
+        } catch (error) {
+            console.error('Error al transferir APU a Cotización:', error);
+            showToast('Error al transferir APU a Cotización: ' + error.message);
+        }
+    }
+
     // Exponer funciones necesarias globalmente
     window.agregarItemCotizacion = agregarItemCotizacion;
     window.eliminarItemCotizacion = eliminarItemCotizacion;
     window.toggleAIU = toggleAIU;
     window.toggleAIUFields = toggleAIUFields;
     window.actualizarTasaCambio = actualizarTasaCambio;
-    window.calcularCotizacion = calcularCotizacion; // Asegurar que esté expuesta
+    window.calcularCotizacion = calcularCotizacion;
     window.toggleTiempoImportacion = toggleTiempoImportacion;
     window.calcularFechaLlegadaMaterial = calcularFechaLlegadaMaterial;
     window.calcularFechaFinal = calcularFechaFinal;
     window.guardarCotizacion = guardarCotizacion;
+    window.transferirAPUACotizacion = transferirAPUACotizacion; // Exponer la nueva función
 
     // Configurar listeners de eventos
     try {
@@ -568,17 +603,10 @@ document.addEventListener('DOMContentLoaded', async () => {
             });
         }
 
-        // Añadir listeners a los inputs editables existentes (para edición)
+        // Añadir listeners a los inputs editables existentes
         const inputsEditables = document.querySelectorAll('.editable');
         inputsEditables.forEach(input => {
-            input.addEventListener('input', () => {
-                if (typeof window.calcularCotizacion === 'function') {
-                    window.calcularCotizacion();
-                } else {
-                    console.error('calcularCotizacion no está definida al editar un ítem.');
-                    showToast('Error: calcularCotizacion no está definida.');
-                }
-            });
+            input.addEventListener('input', () => window.calcularCotizacion());
         });
     } catch (error) {
         console.error('Error al inicializar listeners de fechas:', error);
