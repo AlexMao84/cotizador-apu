@@ -190,18 +190,36 @@ function calcularFechaFinal() {
 
 function actualizarConsecutivo() {
     try {
+        // Obtener las cotizaciones de localStorage
         const cotizaciones = JSON.parse(localStorage.getItem('cotizaciones') || '[]');
-        const ultimoConsecutivo = cotizaciones.reduce((max, cot) => {
-            const num = parseInt(cot.consecutivo.replace('SEL', '')) || 0;
-            return Math.max(max, num);
-        }, 25040000);
+        
+        // Validar que cotizaciones sea un arreglo
+        if (!Array.isArray(cotizaciones)) {
+            throw new Error('Los datos de cotizaciones en localStorage no son un arreglo válido.');
+        }
+
+        let ultimoConsecutivo = 25040000; // Valor inicial por defecto
+
+        // Si hay cotizaciones, buscar el mayor consecutivo
+        if (cotizaciones.length > 0) {
+            ultimoConsecutivo = cotizaciones
+                .filter(cot => cot && cot.consecutivo && typeof cot.consecutivo === 'string' && cot.consecutivo.startsWith('SEL'))
+                .reduce((max, cot) => {
+                    const num = parseInt(cot.consecutivo.replace('SEL', '')) || 0;
+                    return Math.max(max, num);
+                }, 25040000);
+        }
+
+        // Generar el nuevo consecutivo
         const nuevoConsecutivo = `SEL${ultimoConsecutivo + 1}`;
         document.getElementById('consecutivo').textContent = nuevoConsecutivo;
         return nuevoConsecutivo;
     } catch (error) {
         console.error('Error al actualizar consecutivo:', error);
         showToast('Error al actualizar consecutivo: ' + error.message);
-        return 'SEL25040001';
+        const fallbackConsecutivo = 'SEL25040001';
+        document.getElementById('consecutivo').textContent = fallbackConsecutivo;
+        return fallbackConsecutivo;
     }
 }
 
@@ -241,6 +259,43 @@ function guardarCotizacion() {
             return;
         }
 
+        // Generar PDF
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
+        let yPos = 10;
+        doc.text(`Cotización #${consecutivo}`, 10, yPos);
+        yPos += 10;
+        doc.text(`Cliente: ${nombreCliente}`, 10, yPos);
+        yPos += 10;
+        doc.text(`Proyecto: ${proyecto}`, 10, yPos);
+        yPos += 10;
+        doc.text(`Descripción: ${descripcion}`, 10, yPos);
+        yPos += 10;
+        doc.text('Ítems:', 10, yPos);
+        yPos += 10;
+        items.forEach((item, index) => {
+            doc.text(`${index + 1}. ${item.descripcion} - ${item.unidad} - Cantidad: ${item.cantidad} - Precio Unitario: ${formatCurrency(item.precioUnitario, moneda)}`, 10, yPos);
+            yPos += 10;
+        });
+        doc.text(`Precio Total: ${document.getElementById('precioTotal').textContent}`, 10, yPos);
+        yPos += 10;
+        if (conAIU) {
+            doc.text(`Administración: ${document.getElementById('valorAdministrativo').textContent}`, 10, yPos);
+            yPos += 10;
+            doc.text(`Imprevistos: ${document.getElementById('valorImprevistos').textContent}`, 10, yPos);
+            yPos += 10;
+            doc.text(`Utilidad: ${document.getElementById('valorUtilidad').textContent}`, 10, yPos);
+            yPos += 10;
+            doc.text(`Total AIU: ${document.getElementById('valorAIU').textContent}`, 10, yPos);
+            yPos += 10;
+        }
+        doc.text(`IVA: ${document.getElementById('iva').textContent}`, 10, yPos);
+        yPos += 10;
+        doc.text(`Fecha Final Estimada: ${fechaFinal || 'No especificada'}`, 10, yPos);
+
+        const pdfFileName = `cotizacion_${consecutivo}.pdf`;
+        doc.save(pdfFileName);
+
         const cotizaciones = JSON.parse(localStorage.getItem('cotizaciones') || '[]');
         const cotizacion = {
             consecutivo,
@@ -265,12 +320,13 @@ function guardarCotizacion() {
             tiempoFabricacionDespacho,
             tiempoInstalacion,
             fechaFinal,
-            precioTotal: parseFloat(document.getElementById('precioTotal').textContent.replace(/[^0-9.]/g, '')) || 0
+            precioTotal: parseFloat(document.getElementById('precioTotal').textContent.replace(/[^0-9.]/g, '')) || 0,
+            pdfPath: pdfFileName
         };
 
         cotizaciones.push(cotizacion);
         localStorage.setItem('cotizaciones', JSON.stringify(cotizaciones));
-        showToast('Cotización guardada exitosamente.', 'success');
+        showToast('Cotización guardada y PDF generado exitosamente.', 'success');
         actualizarConsecutivo();
         document.getElementById('nombreCliente').value = '';
         document.getElementById('proyecto').value = '';
