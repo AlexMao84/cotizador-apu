@@ -48,13 +48,13 @@ document.addEventListener('DOMContentLoaded', async () => {
             showToast('Token de GitHub actualizado exitosamente.', 'success');
         }
 
-        // Agregar un botón para actualizar el token desde la interfaz
+        // Agregar un botón para actualizar el token desde la interfaz y mostrar el token guardado
         function inicializarTokenUI() {
             const tokenFieldContainer = document.createElement('div');
             tokenFieldContainer.style.margin = '10px 0';
             tokenFieldContainer.innerHTML = `
                 <label for="githubTokenInput">Token de GitHub: </label>
-                <input type="text" id="githubTokenInput" placeholder="Ingrese su token de GitHub" style="width: 300px;">
+                <input type="text" id="githubTokenInput" placeholder="Ingrese su token de GitHub" style="width: 300px;" value="${localStorage.getItem('githubToken') || ''}">
                 <button id="updateTokenBtn">Actualizar Token</button>
             `;
             document.body.insertBefore(tokenFieldContainer, document.body.firstChild);
