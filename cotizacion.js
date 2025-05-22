@@ -378,11 +378,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         async function actualizarConsecutivo() {
             try {
-                // Intentar obtener el último consecutivo desde localStorage
                 let ultimoConsecutivoLocal = parseInt(localStorage.getItem('ultimoConsecutivo')) || 25040000;
                 let nuevoConsecutivo = ultimoConsecutivoLocal;
 
-                // Intentar cargar cotizaciones desde GitHub
                 const { content } = await fetchCotizacionesFromGitHub();
                 let cotizaciones = [];
 
@@ -398,7 +396,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                     }
                 }
 
-                // Calcular el último consecutivo desde GitHub
                 let ultimoConsecutivoGitHub = 25040000;
                 if (cotizaciones.length > 0) {
                     ultimoConsecutivoGitHub = cotizaciones
@@ -409,11 +406,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                         }, 25040000);
                 }
 
-                // Usar el mayor valor entre GitHub y localStorage
                 nuevoConsecutivo = Math.max(ultimoConsecutivoGitHub, ultimoConsecutivoLocal) + 1;
                 const nuevoConsecutivoStr = `SEL${nuevoConsecutivo}`;
 
-                // Actualizar el DOM
                 const consecutivoElement = document.getElementById('consecutivo');
                 if (consecutivoElement) {
                     consecutivoElement.textContent = nuevoConsecutivoStr;
@@ -422,14 +417,11 @@ document.addEventListener('DOMContentLoaded', async () => {
                     showToast('Error: No se encontró el elemento para mostrar el consecutivo.', 'error');
                 }
 
-                // Guardar el nuevo consecutivo en localStorage
                 localStorage.setItem('ultimoConsecutivo', nuevoConsecutivo.toString());
-
                 return nuevoConsecutivoStr;
             } catch (error) {
                 console.error('Error al actualizar consecutivo:', error);
                 showToast('Error al actualizar consecutivo: ' + error.message, 'error');
-                // Usar localStorage como respaldo
                 let ultimoConsecutivo = parseInt(localStorage.getItem('ultimoConsecutivo')) || 25040000;
                 ultimoConsecutivo++;
                 const fallbackConsecutivo = `SEL${ultimoConsecutivo}`;
@@ -440,6 +432,172 @@ document.addEventListener('DOMContentLoaded', async () => {
                     consecutivoElement.textContent = fallbackConsecutivo;
                 }
                 return fallbackConsecutivo;
+            }
+        }
+
+        async function buscarCotizacionPorConsecutivo(consecutivo) {
+            try {
+                // Primero, buscar en localStorage
+                let localCotizaciones = JSON.parse(localStorage.getItem('cotizaciones') || '[]');
+                let cotizacion = localCotizaciones.find(cot => cot.consecutivo === consecutivo);
+                if (cotizacion) {
+                    return cotizacion;
+                }
+
+                // Si no se encuentra en localStorage, buscar en GitHub
+                const { content } = await fetchCotizacionesFromGitHub();
+                let cotizaciones = [];
+                if (content && typeof content === 'string' && content.trim().length > 0) {
+                    cotizaciones = JSON.parse(atob(content));
+                    if (!Array.isArray(cotizaciones)) {
+                        cotizaciones = [];
+                    }
+                }
+                cotizacion = cotizaciones.find(cot => cot.consecutivo === consecutivo);
+                if (!cotizacion) {
+                    throw new Error('Cotización no encontrada.');
+                }
+                return cotizacion;
+            } catch (error) {
+                console.error('Error al buscar cotización:', error);
+                throw new Error('Cotización no encontrada: ' + error.message);
+            }
+        }
+
+        async function generarPDFCotizacion(consecutivo) {
+            try {
+                const cotizacion = await buscarCotizacionPorConsecutivo(consecutivo);
+                const { jsPDF } = window.jspdf || {};
+                if (!jsPDF) {
+                    throw new Error('jsPDF no está disponible. Asegúrese de incluir la librería.');
+                }
+                const doc = new jsPDF({
+                    orientation: 'portrait',
+                    unit: 'mm',
+                    format: 'a4'
+                });
+
+                const marginLeft = 10;
+                const marginTop = 10;
+                let yPos = marginTop;
+
+                doc.setFontSize(16);
+                doc.setFont('helvetica', 'bold');
+                doc.text('Cotización', 105, yPos, { align: 'center' });
+                yPos += 10;
+                doc.setFontSize(12);
+                doc.text(`No. ${cotizacion.consecutivo}`, 105, yPos, { align: 'center' });
+                yPos += 10;
+                doc.setFontSize(10);
+                doc.setFont('helvetica', 'normal');
+                doc.text(`Fecha: ${cotizacion.fechaCreacion}`, 190, yPos, { align: 'right' });
+                yPos += 10;
+
+                doc.setFontSize(12);
+                doc.setFont('helvetica', 'bold');
+                doc.text('Información General', marginLeft, yPos);
+                yPos += 5;
+                doc.setFontSize(10);
+                doc.setFont('helvetica', 'normal');
+                doc.text(`Cliente: ${cotizacion.nombreCliente}`, marginLeft, yPos);
+                yPos += 5;
+                doc.text(`Proyecto: ${cotizacion.proyecto}`, marginLeft, yPos);
+                yPos += 5;
+                doc.text(`Descripción: ${cotizacion.descripcion || 'Sin descripción'}`, marginLeft, yPos);
+                yPos += 10;
+
+                doc.setFontSize(12);
+                doc.setFont('helvetica', 'bold');
+                doc.text('Ítems de la Cotización', marginLeft, yPos);
+                yPos += 5;
+                const itemData = cotizacion.items.map((item, index) => [
+                    (index + 1).toString(),
+                    item.descripcion,
+                    item.unidad,
+                    item.cantidad.toFixed(2),
+                    formatCurrency(item.precioUnitario, cotizacion.moneda),
+                    formatCurrency(item.subtotal, cotizacion.moneda)
+                ]);
+                doc.autoTable({
+                    startY: yPos,
+                    head: [['#', 'Descripción', 'Unidad', 'Cantidad', 'Precio Unitario', 'Subtotal']],
+                    body: itemData,
+                    theme: 'grid',
+                    styles: { fontSize: 8, cellPadding: 2 },
+                    headStyles: { fillColor: [50, 50, 50] },
+                    margin: { left: marginLeft, right: marginLeft }
+                });
+                yPos = doc.lastAutoTable.finalY + 10;
+
+                doc.setFontSize(12);
+                doc.setFont('helvetica', 'bold');
+                doc.text('Resumen de Costos', marginLeft, yPos);
+                yPos += 5;
+                let subtotalGeneral = cotizacion.items.reduce((sum, item) => sum + item.subtotal, 0);
+                let administracion = 0, imprevistos = 0, utilidad = 0, totalAIU = 0;
+                if (cotizacion.conAIU) {
+                    administracion = (cotizacion.administrativo / 100) * subtotalGeneral;
+                    imprevistos = (cotizacion.imprevistos / 100) * subtotalGeneral;
+                    utilidad = (cotizacion.utilidad / 100) * subtotalGeneral;
+                    totalAIU = administracion + imprevistos + utilidad;
+                }
+                const iva = subtotalGeneral * 0.19;
+                const total = subtotalGeneral + totalAIU + iva;
+                const valorAnticipo = total * (cotizacion.porcentajeAnticipo / 100);
+                const costData = [
+                    ['Subtotal', formatCurrency(subtotalGeneral, cotizacion.moneda)]
+                ];
+                if (cotizacion.conAIU) {
+                    costData.push(['Administración', formatCurrency(administracion, cotizacion.moneda)]);
+                    costData.push(['Imprevistos', formatCurrency(imprevistos, cotizacion.moneda)]);
+                    costData.push(['Utilidad', formatCurrency(utilidad, cotizacion.moneda)]);
+                    costData.push(['Total AIU', formatCurrency(totalAIU, cotizacion.moneda)]);
+                }
+                costData.push(['IVA (19%)', formatCurrency(iva, cotizacion.moneda)]);
+                costData.push(['Total', formatCurrency(total, cotizacion.moneda)]);
+                costData.push(['Anticipo', formatCurrency(valorAnticipo, cotizacion.moneda)]);
+                doc.autoTable({
+                    startY: yPos,
+                    body: costData,
+                    theme: 'grid',
+                    styles: { fontSize: 8, cellPadding: 2 },
+                    margin: { left: marginLeft, right: marginLeft }
+                });
+                yPos = doc.lastAutoTable.finalY + 10;
+
+                doc.setFontSize(12);
+                doc.setFont('helvetica', 'bold');
+                doc.text('Condiciones', marginLeft, yPos);
+                yPos += 5;
+                doc.setFontSize(10);
+                doc.setFont('helvetica', 'normal');
+                doc.text(`Forma de Pago: ${cotizacion.formaPago}`, marginLeft, yPos);
+                yPos += 5;
+                doc.text(`Porcentaje de Anticipo: ${cotizacion.porcentajeAnticipo}%`, marginLeft, yPos);
+                yPos += 5;
+                doc.text(`Fecha de Anticipo: ${cotizacion.fechaAnticipo}`, marginLeft, yPos);
+                yPos += 5;
+                doc.text(`Importación: ${cotizacion.importacion}`, marginLeft, yPos);
+                if (cotizacion.importacion === 'Sí') {
+                    yPos += 5;
+                    doc.text(`Tiempo de Importación: ${cotizacion.tiempoImportacion} días`, marginLeft, yPos);
+                }
+                yPos += 5;
+                doc.text(`Fecha de Llegada Material: ${cotizacion.fechaLlegadaMaterial}`, marginLeft, yPos);
+                yPos += 5;
+                doc.text(`Tiempo de Planeación: ${cotizacion.tiempoPlaneacion} semanas`, marginLeft, yPos);
+                yPos += 5;
+                doc.text(`Tiempo de Fabricación y Despacho: ${cotizacion.tiempoFabricacionDespacho} semanas`, marginLeft, yPos);
+                yPos += 5;
+                doc.text(`Tiempo de Instalación: ${cotizacion.tiempoInstalacion} meses`, marginLeft, yPos);
+                yPos += 5;
+                doc.text(`Fecha Final: ${cotizacion.fechaFinal}`, marginLeft, yPos);
+
+                const pdfBase64 = doc.output('datauristring').split(',')[1];
+                descargarPDFCotizacion(consecutivo, pdfBase64);
+            } catch (error) {
+                console.error('Error al generar PDF:', error);
+                showToast('Error al generar PDF: ' + error.message, 'error');
             }
         }
 
@@ -700,8 +858,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 
                 showToast('Cotización guardada exitosamente.', 'success');
                 descargarPDFCotizacion(consecutivo, pdfContent);
-
-                // Actualizar el consecutivo después de guardar
                 await actualizarConsecutivo();
             } catch (error) {
                 console.error('Error al guardar cotización:', error);
@@ -709,7 +865,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
         }
 
-        // Exponer funciones globalmente
         window.agregarItemCotizacion = agregarItemCotizacion;
         window.eliminarItemCotizacion = eliminarItemCotizacion;
         window.toggleAIU = toggleAIU;
@@ -720,11 +875,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         window.calcularFechaLlegadaMaterial = calcularFechaLlegadaMaterial;
         window.calcularFechaFinal = calcularFechaFinal;
         window.guardarCotizacion = guardarCotizacion;
+        window.generarPDFCotizacion = generarPDFCotizacion;
 
-        // Inicializar la interfaz para el token
         inicializarTokenUI();
-
-        // Inicializar la cotización al cargar
         await actualizarConsecutivo();
         inicializarListenersEditables();
         calcularCotizacion();
@@ -735,7 +888,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         window.cotizacionLoaded = true;
     }
 
-    // Temporizador de seguridad para establecer window.cotizacionLoaded después de 5 segundos
     setTimeout(() => {
         if (!window.cotizacionLoaded) {
             console.warn('Inicialización de cotizacion.js excedió el tiempo límite. Estableciendo window.cotizacionLoaded a true.');
