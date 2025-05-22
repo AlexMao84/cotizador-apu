@@ -3,7 +3,7 @@ window.cotizacionLoaded = false;
 document.addEventListener('DOMContentLoaded', async () => {
     try {
         // Definir todas las constantes al inicio del bloque
-         let GITHUB_TOKEN = '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'; // Este token debe ser reemplazado por uno válido
+         let GITHUB_TOKEN = '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'
         const REPO_OWNER = 'alexmao84';
         const REPO_NAME = 'cotizador-apu';
         const COTIZACIONES_JSON_PATH = 'cotizaciones.json';
