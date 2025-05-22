@@ -240,8 +240,24 @@ function usarEnCotizacion() {
             <td class="subtotal"></td>
             <td><button class="delete-btn" onclick="eliminarItemCotizacion(this)" title="Eliminar ítem"><i class="fas fa-trash"></i></button></td>
         `;
-        newRow.querySelectorAll('.editable').forEach(input => input.addEventListener('input', calcularCotizacion));
-        calcularCotizacion();
+        newRow.querySelectorAll('.editable').forEach(input => input.addEventListener('input', () => {
+            if (typeof window.calcularCotizacion === 'function') {
+                window.calcularCotizacion();
+            } else {
+                showToast('Error: calcularCotizacion no está definida. Por favor, espere un momento e intente de nuevo.');
+            }
+        }));
+        if (typeof window.calcularCotizacion === 'function' && window.cotizacionLoaded) {
+            window.calcularCotizacion();
+        } else {
+            showToast('Cotización aún cargando. Por favor, espere un momento e intente de nuevo.');
+            const waitForCotizacion = setInterval(() => {
+                if (window.cotizacionLoaded && typeof window.calcularCotizacion === 'function') {
+                    clearInterval(waitForCotizacion);
+                    window.calcularCotizacion();
+                }
+            }, 500);
+        }
         showToast('APU transferido a Cotización exitosamente.', 'success');
         openTab('cotizacion');
     } catch (error) {
@@ -249,7 +265,6 @@ function usarEnCotizacion() {
         showToast('Error al transferir APU a Cotización: ' + error.message);
     }
 }
-
 function descargarPDFCalculadora() {
     try {
         const { jsPDF } = window.jspdf;
