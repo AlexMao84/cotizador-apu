@@ -3,11 +3,11 @@ window.cotizacionLoaded = false;
 document.addEventListener('DOMContentLoaded', async () => {
     try {
         // Definir todas las constantes al inicio del bloque
-        let GITHUB_TOKEN = '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'; // Este token debe ser reemplazado por uno válido
-        const REPO_OWNER = 'alexmao84';
-        const REPO_NAME = 'cotizador-apu';
-        const COTIZACIONES_JSON_PATH = 'cotizaciones.json';
-        const PDF_FOLDER = 'cotizaciones_pdf';
+        let GITHUB_TOKEN = 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; // Este token debe ser reemplazado por uno válido
+        const REPO_OWNER = alexmao84;
+        const REPO_NAME = cotizador-apu;
+        const COTIZACIONES_JSON_PATH = cotizaciones.json;
+        const PDF_FOLDER = cotizaciones_pdf;
 
         // Permitir al usuario configurar el token dinámicamente
         function setGitHubToken(token) {
