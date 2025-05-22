@@ -1,17 +1,68 @@
-window.cotizacionLoaded = false;
-
 document.addEventListener('DOMContentLoaded', async () => {
+    // Establecer la bandera al inicio
+    window.cotizacionLoaded = false;
+
+    // Verificar dependencias
+    if (typeof showToast !== 'function') {
+        console.error('La función showToast no está definida. Asegúrese de incluir la librería correspondiente.');
+        showToast = (message, type = 'error') => alert(`${type.toUpperCase()}: ${message}`);
+    }
+    if (typeof window.jspdf === 'undefined') {
+        console.error('La librería jsPDF no está cargada. Asegúrese de incluir <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script> en index.html.');
+    }
+
     try {
-        // Definir todas las constantes al inicio del bloque
-         let GITHUB_TOKEN = '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'
+        // Cargar token desde localStorage si existe, o usar uno por defecto
+        let GITHUB_TOKEN = localStorage.getItem('githubToken') || '';
         const REPO_OWNER = 'alexmao84';
         const REPO_NAME = 'cotizador-apu';
         const COTIZACIONES_JSON_PATH = 'cotizaciones.json';
         const PDF_FOLDER = 'cotizaciones_pdf';
 
+        // Crear un campo para que el usuario ingrese el token si no está definido
+        if (!GITHUB_TOKEN) {
+            const tokenPrompt = prompt('Por favor, ingrese su token de GitHub para acceder al repositorio (debe tener alcance "repo"):');
+            if (tokenPrompt && (tokenPrompt.startsWith('ghp_') || tokenPrompt.startsWith('gghp_'))) {
+                GITHUB_TOKEN = tokenPrompt;
+                localStorage.setItem('githubToken', GITHUB_TOKEN);
+                showToast('Token de GitHub guardado exitosamente.', 'success');
+            } else {
+                showToast('No se proporcionó un token válido. La aplicación usará almacenamiento local como respaldo.', 'warning');
+            }
+        }
+
+        // Validar el formato del token de GitHub
+        if (GITHUB_TOKEN && !GITHUB_TOKEN.startsWith('ghp_') && !GITHUB_TOKEN.startsWith('gghp_')) {
+            throw new Error('El token de GitHub no tiene un formato válido. Asegúrese de que comience con "ghp_" o "gghp_".');
+        }
+
         // Permitir al usuario configurar el token dinámicamente
         function setGitHubToken(token) {
+            if (!token || (!token.startsWith('ghp_') && !token.startsWith('gghp_'))) {
+                console.error('Token de GitHub inválido. Debe comenzar con "ghp_" o "gghp_".');
+                showToast('Token de GitHub inválido. Por favor, proporcione un token válido.', 'error');
+                return;
+            }
             GITHUB_TOKEN = token;
+            localStorage.setItem('githubToken', GITHUB_TOKEN);
+            showToast('Token de GitHub actualizado exitosamente.', 'success');
+        }
+
+        // Agregar un botón para actualizar el token desde la interfaz
+        function inicializarTokenUI() {
+            const tokenFieldContainer = document.createElement('div');
+            tokenFieldContainer.style.margin = '10px 0';
+            tokenFieldContainer.innerHTML = `
+                <label for="githubTokenInput">Token de GitHub: </label>
+                <input type="text" id="githubTokenInput" placeholder="Ingrese su token de GitHub" style="width: 300px;">
+                <button id="updateTokenBtn">Actualizar Token</button>
+            `;
+            document.body.insertBefore(tokenFieldContainer, document.body.firstChild);
+
+            document.getElementById('updateTokenBtn').addEventListener('click', () => {
+                const newToken = document.getElementById('githubTokenInput').value;
+                setGitHubToken(newToken);
+            });
         }
 
         // Función para inicializar o actualizar listeners de los elementos editables
@@ -24,12 +75,11 @@ document.addEventListener('DOMContentLoaded', async () => {
                         window.calcularCotizacion();
                     } else {
                         console.error('calcularCotizacion no está definida al editar.');
-                        showToast('Error: calcularCotizacion no está definida.');
+                        showToast('Error: calcularCotizacion no está definida.', 'error');
                     }
                 });
             });
 
-            // Agregar listeners específicos para campos de fechas y tiempos
             const fechaAnticipo = document.getElementById('fechaAnticipo');
             const importacion = document.getElementById('importacion');
             const tiempoImportacion = document.getElementById('tiempoImportacion');
@@ -37,15 +87,14 @@ document.addEventListener('DOMContentLoaded', async () => {
             const tiempoFabricacionDespacho = document.getElementById('tiempoFabricacionDespacho');
             const tiempoInstalacion = document.getElementById('tiempoInstalacion');
 
-            fechaAnticipo.addEventListener('change', window.calcularFechaLlegadaMaterial);
-            importacion.addEventListener('change', window.toggleTiempoImportacion);
-            tiempoImportacion.addEventListener('input', window.calcularFechaLlegadaMaterial);
-            tiempoPlaneacion.addEventListener('input', window.calcularFechaFinal);
-            tiempoFabricacionDespacho.addEventListener('input', window.calcularFechaFinal);
-            tiempoInstalacion.addEventListener('input', window.calcularFechaFinal);
+            if (fechaAnticipo) fechaAnticipo.addEventListener('change', window.calcularFechaLlegadaMaterial);
+            if (importacion) importacion.addEventListener('change', window.toggleTiempoImportacion);
+            if (tiempoImportacion) tiempoImportacion.addEventListener('input', window.calcularFechaLlegadaMaterial);
+            if (tiempoPlaneacion) tiempoPlaneacion.addEventListener('input', window.calcularFechaFinal);
+            if (tiempoFabricacionDespacho) tiempoFabricacionDespacho.addEventListener('input', window.calcularFechaFinal);
+            if (tiempoInstalacion) tiempoInstalacion.addEventListener('input', window.calcularFechaFinal);
         }
 
-        // Funciones para interactuar con GitHub
         async function fetchCotizacionesFromGitHub() {
             try {
                 if (!REPO_OWNER || !REPO_NAME || !GITHUB_TOKEN) {
@@ -61,13 +110,21 @@ document.addEventListener('DOMContentLoaded', async () => {
                     return { content: btoa(JSON.stringify([])), sha: null };
                 }
                 if (response.status === 401) {
-                    throw new Error('Credenciales inválidas. Por favor, actualice el token de GitHub.');
+                    showToast('Credenciales inválidas. Por favor, actualice el token de GitHub.', 'error');
+                    return { content: btoa(JSON.stringify([])), sha: null };
+                }
+                if (response.status === 403) {
+                    showToast('Límite de la API de GitHub alcanzado o acceso denegado al repositorio. Verifique los permisos del token.', 'error');
+                    return { content: btoa(JSON.stringify([])), sha: null };
+                }
+                if (!response.ok) {
+                    throw new Error(`Error al cargar cotizaciones desde GitHub: ${response.status} - ${response.statusText}`);
                 }
                 const data = await response.json();
                 return { content: data.content, sha: data.sha };
             } catch (error) {
                 console.error('Error al cargar cotizaciones desde GitHub:', error);
-                showToast('Error al cargar cotizaciones desde GitHub: ' + error.message);
+                showToast('Error al cargar cotizaciones desde GitHub: ' + error.message, 'warning');
                 return { content: btoa(JSON.stringify([])), sha: null };
             }
         }
@@ -89,6 +146,14 @@ document.addEventListener('DOMContentLoaded', async () => {
                         sha: sha
                     })
                 });
+                if (response.status === 401) {
+                    showToast('Credenciales inválidas al guardar en GitHub. Por favor, actualice el token.', 'error');
+                    throw new Error('Credenciales inválidas.');
+                }
+                if (response.status === 403) {
+                    showToast('Límite de la API de GitHub alcanzado o acceso denegado al repositorio. Verifique los permisos del token.', 'error');
+                    throw new Error('Acceso denegado o límite de API alcanzado.');
+                }
                 if (!response.ok) {
                     const errorData = await response.json();
                     throw new Error(`Código ${response.status}: ${response.statusText} - ${errorData.message || 'Sin detalles'}`);
@@ -96,12 +161,11 @@ document.addEventListener('DOMContentLoaded', async () => {
                 return await response.json();
             } catch (error) {
                 console.error('Error al guardar en GitHub:', error);
-                showToast(`Error al guardar en GitHub: ${error.message}`);
+                showToast(`Error al guardar en GitHub: ${error.message}`, 'warning');
                 throw error;
             }
         }
 
-        // Funciones de la interfaz de cotización
         function agregarItemCotizacion() {
             try {
                 const tabla = document.getElementById('tablaItemsCotizacion').getElementsByTagName('tbody')[0];
@@ -122,7 +186,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 window.calcularCotizacion();
             } catch (error) {
                 console.error('Error al agregar ítem de cotización:', error);
-                showToast('Error al agregar ítem: ' + error.message);
+                showToast('Error al agregar ítem: ' + error.message, 'error');
             }
         }
 
@@ -132,7 +196,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 window.calcularCotizacion();
             } catch (error) {
                 console.error('Error al eliminar ítem de cotización:', error);
-                showToast('Error al eliminar ítem: ' + error.message);
+                showToast('Error al eliminar ítem: ' + error.message, 'error');
             }
         }
 
@@ -147,7 +211,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 window.calcularCotizacion();
             } catch (error) {
                 console.error('Error al alternar AIU:', error);
-                showToast('Error al alternar AIU: ' + error.message);
+                showToast('Error al alternar AIU: ' + error.message, 'error');
             }
         }
 
@@ -162,7 +226,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 }
             } catch (error) {
                 console.error('Error al alternar campos AIU:', error);
-                showToast('Error al alternar campos AIU: ' + error.message);
+                showToast('Error al alternar campos AIU: ' + error.message, 'error');
             }
         }
 
@@ -175,7 +239,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 window.calcularCotizacion();
             } catch (error) {
                 console.error('Error al actualizar tasa de cambio:', error);
-                showToast('Error al actualizar tasa de cambio: ' + error.message);
+                showToast('Error al actualizar tasa de cambio: ' + error.message, 'error');
             }
         }
 
@@ -239,7 +303,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 calcularFechaFinal();
             } catch (error) {
                 console.error('Error al calcular cotización:', error);
-                showToast('Error al calcular cotización: ' + error.message);
+                showToast('Error al calcular cotización: ' + error.message, 'error');
                 calcularFechaLlegadaMaterial();
                 calcularFechaFinal();
             }
@@ -252,7 +316,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 calcularFechaLlegadaMaterial();
             } catch (error) {
                 console.error('Error al alternar tiempo de importación:', error);
-                showToast('Error al alternar tiempo de importación: ' + error.message);
+                showToast('Error al alternar tiempo de importación: ' + error.message, 'error');
             }
         }
 
@@ -283,7 +347,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 calcularFechaFinal();
             } catch (error) {
                 console.error('Error al calcular fecha de llegada:', error);
-                showToast('Error al calcular fecha de llegada: ' + error.message);
+                showToast('Error al calcular fecha de llegada: ' + error.message, 'error');
             }
         }
 
@@ -308,15 +372,20 @@ document.addEventListener('DOMContentLoaded', async () => {
                 fechaFinalInput.value = fecha.toISOString().split('T')[0];
             } catch (error) {
                 console.error('Error al calcular fecha final:', error);
-                showToast('Error al calcular fecha final: ' + error.message);
+                showToast('Error al calcular fecha final: ' + error.message, 'error');
             }
         }
 
         async function actualizarConsecutivo() {
             try {
+                // Intentar obtener el último consecutivo desde localStorage
+                let ultimoConsecutivoLocal = parseInt(localStorage.getItem('ultimoConsecutivo')) || 25040000;
+                let nuevoConsecutivo = ultimoConsecutivoLocal;
+
+                // Intentar cargar cotizaciones desde GitHub
                 const { content } = await fetchCotizacionesFromGitHub();
                 let cotizaciones = [];
-                
+
                 if (content && typeof content === 'string' && content.trim().length > 0) {
                     try {
                         cotizaciones = JSON.parse(atob(content));
@@ -329,9 +398,10 @@ document.addEventListener('DOMContentLoaded', async () => {
                     }
                 }
 
-                let ultimoConsecutivo = 25040000;
+                // Calcular el último consecutivo desde GitHub
+                let ultimoConsecutivoGitHub = 25040000;
                 if (cotizaciones.length > 0) {
-                    ultimoConsecutivo = cotizaciones
+                    ultimoConsecutivoGitHub = cotizaciones
                         .filter(cot => cot && cot.consecutivo && typeof cot.consecutivo === 'string' && cot.consecutivo.startsWith('SEL'))
                         .reduce((max, cot) => {
                             const num = parseInt(cot.consecutivo.replace('SEL', '')) || 0;
@@ -339,14 +409,36 @@ document.addEventListener('DOMContentLoaded', async () => {
                         }, 25040000);
                 }
 
-                const nuevoConsecutivo = `SEL${ultimoConsecutivo + 1}`;
-                document.getElementById('consecutivo').textContent = nuevoConsecutivo;
-                return nuevoConsecutivo;
+                // Usar el mayor valor entre GitHub y localStorage
+                nuevoConsecutivo = Math.max(ultimoConsecutivoGitHub, ultimoConsecutivoLocal) + 1;
+                const nuevoConsecutivoStr = `SEL${nuevoConsecutivo}`;
+
+                // Actualizar el DOM
+                const consecutivoElement = document.getElementById('consecutivo');
+                if (consecutivoElement) {
+                    consecutivoElement.textContent = nuevoConsecutivoStr;
+                } else {
+                    console.error('Elemento con ID "consecutivo" no encontrado en el DOM.');
+                    showToast('Error: No se encontró el elemento para mostrar el consecutivo.', 'error');
+                }
+
+                // Guardar el nuevo consecutivo en localStorage
+                localStorage.setItem('ultimoConsecutivo', nuevoConsecutivo.toString());
+
+                return nuevoConsecutivoStr;
             } catch (error) {
                 console.error('Error al actualizar consecutivo:', error);
-                showToast('Error al actualizar consecutivo: ' + error.message);
-                const fallbackConsecutivo = 'SEL25040001';
-                document.getElementById('consecutivo').textContent = fallbackConsecutivo;
+                showToast('Error al actualizar consecutivo: ' + error.message, 'error');
+                // Usar localStorage como respaldo
+                let ultimoConsecutivo = parseInt(localStorage.getItem('ultimoConsecutivo')) || 25040000;
+                ultimoConsecutivo++;
+                const fallbackConsecutivo = `SEL${ultimoConsecutivo}`;
+                localStorage.setItem('ultimoConsecutivo', ultimoConsecutivo.toString());
+
+                const consecutivoElement = document.getElementById('consecutivo');
+                if (consecutivoElement) {
+                    consecutivoElement.textContent = fallbackConsecutivo;
+                }
                 return fallbackConsecutivo;
             }
         }
@@ -375,21 +467,35 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const fechaFinal = document.getElementById('fechaFinal').value || '';
 
                 const tabla = document.getElementById('tablaItemsCotizacion').getElementsByTagName('tbody')[0];
-                const items = Array.from(tabla.rows).map(row => ({
-                    descripcion: row.querySelector('.descripcion').value || 'Ítem Sin Descripción',
-                    unidad: row.querySelector('.unidad').value,
-                    cantidad: parseFloat(row.querySelector('.cantidad').value) || 0,
-                    precioUnitario: parseFloat(row.querySelector('.precioUnitario').value) || 0,
-                    subtotal: (parseFloat(row.querySelector('.cantidad').value) || 0) * (parseFloat(row.querySelector('.precioUnitario').value) || 0)
-                }));
+                const items = Array.from(tabla.rows).map(row => {
+                    const descripcion = row.querySelector('.descripcion').value || 'Ítem Sin Descripción';
+                    const unidad = row.querySelector('.unidad').value;
+                    const cantidad = parseFloat(row.querySelector('.cantidad').value) || 0;
+                    const precioUnitario = parseFloat(row.querySelector('.precioUnitario').value) || 0;
+                    const subtotal = cantidad * precioUnitario;
+
+                    if (isNaN(cantidad) || isNaN(precioUnitario) || isNaN(subtotal)) {
+                        throw new Error('Valores inválidos en los ítems de la cotización.');
+                    }
+
+                    return {
+                        "descripcion": descripcion,
+                        "unidad": unidad,
+                        "cantidad": cantidad,
+                        "precioUnitario": precioUnitario,
+                        "subtotal": subtotal
+                    };
+                });
 
                 if (!items.length || !nombreCliente || !proyecto) {
-                    showToast('Complete los campos requeridos: Cliente, Proyecto e Ítems.');
+                    showToast('Complete los campos requeridos: Cliente, Proyecto e Ítems.', 'error');
                     return;
                 }
 
-                // Generar PDF
-                const { jsPDF } = window.jspdf;
+                const { jsPDF } = window.jspdf || {};
+                if (!jsPDF) {
+                    throw new Error('jsPDF no está disponible. Asegúrese de incluir la librería.');
+                }
                 const doc = new jsPDF({
                     orientation: 'portrait',
                     unit: 'mm',
@@ -464,7 +570,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 }
                 costData.push(['IVA (19%)', formatCurrency(parseFloat(document.getElementById('iva').textContent.replace(/[^0-9.]/g, '')) || 0, moneda)]);
                 costData.push(['Total', formatCurrency(parseFloat(document.getElementById('precioTotal').textContent.replace(/[^0-9.]/g, '')) || 0, moneda)]);
-                costData.push(['Anticipo', formatCurrency(parseFloat(document.getElementById('valorAnticipo').textContent.replace(/[^0-0.]/g, '')) || 0, moneda)]);
+                costData.push(['Anticipo', formatCurrency(parseFloat(document.getElementById('valorAnticipo').textContent.replace(/[^0-9.]/g, '')) || 0, moneda)]);
                 doc.autoTable({
                     startY: yPos,
                     body: costData,
@@ -533,41 +639,52 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const { content: jsonContent, sha: jsonSha } = await fetchCotizacionesFromGitHub();
                 let cotizaciones = [];
                 if (jsonContent && jsonContent.trim().length > 0) {
-                    cotizaciones = JSON.parse(atob(jsonContent));
-                    if (!Array.isArray(cotizaciones)) {
+                    try {
+                        cotizaciones = JSON.parse(atob(jsonContent));
+                        if (!Array.isArray(cotizaciones)) {
+                            cotizaciones = [];
+                        }
+                    } catch (parseError) {
+                        console.error('Error al parsear cotizaciones existentes:', parseError);
                         cotizaciones = [];
                     }
                 }
+
                 const nuevaCotizacion = {
-                    consecutivo,
-                    nombreCliente,
-                    proyecto,
-                    descripcion,
-                    moneda,
-                    tasaCambio,
-                    conAIU,
-                    administrativo,
-                    imprevistos,
-                    utilidad,
-                    formaPago,
-                    porcentajeAnticipo,
-                    fechaAnticipo,
-                    importacion,
-                    tiempoImportacion,
-                    fechaLlegadaMaterial,
-                    tiempoPlaneacion,
-                    tiempoFabricacionDespacho,
-                    tiempoInstalacion,
-                    fechaFinal,
-                    items,
-                    pdfPath,
-                    fechaCreacion: today
+                    "consecutivo": consecutivo,
+                    "nombreCliente": nombreCliente,
+                    "proyecto": proyecto,
+                    "descripcion": descripcion,
+                    "moneda": moneda,
+                    "tasaCambio": tasaCambio,
+                    "conAIU": conAIU,
+                    "administrativo": administrativo,
+                    "imprevistos": imprevistos,
+                    "utilidad": utilidad,
+                    "formaPago": formaPago,
+                    "porcentajeAnticipo": porcentajeAnticipo,
+                    "fechaAnticipo": fechaAnticipo,
+                    "importacion": importacion,
+                    "tiempoImportacion": tiempoImportacion,
+                    "fechaLlegadaMaterial": fechaLlegadaMaterial,
+                    "tiempoPlaneacion": tiempoPlaneacion,
+                    "tiempoFabricacionDespacho": tiempoFabricacionDespacho,
+                    "tiempoInstalacion": tiempoInstalacion,
+                    "fechaFinal": fechaFinal,
+                    "items": items,
+                    "pdfPath": pdfPath,
+                    "fechaCreacion": today
                 };
                 cotizaciones.push(nuevaCotizacion);
 
+                const jsonString = JSON.stringify(cotizaciones);
+                if (!jsonString) {
+                    throw new Error('No se pudo serializar la cotización a JSON.');
+                }
+
                 if (gitHubSuccess) {
                     try {
-                        await saveFileToGitHub(COTIZACIONES_JSON_PATH, btoa(JSON.stringify(cotizaciones)), `Actualizar cotizaciones con ${consecutivo}`, jsonSha);
+                        await saveFileToGitHub(COTIZACIONES_JSON_PATH, btoa(jsonString), `Actualizar cotizaciones con ${consecutivo}`, jsonSha);
                     } catch (error) {
                         gitHubSuccess = false;
                         showToast('No se pudo guardar la cotización en GitHub. Guardando localmente como respaldo.', 'warning');
@@ -583,9 +700,12 @@ document.addEventListener('DOMContentLoaded', async () => {
 
                 showToast('Cotización guardada exitosamente.', 'success');
                 descargarPDFCotizacion(consecutivo, pdfContent);
+
+                // Actualizar el consecutivo después de guardar
+                await actualizarConsecutivo();
             } catch (error) {
                 console.error('Error al guardar cotización:', error);
-                showToast('Error al guardar cotización: ' + error.message);
+                showToast('Error al guardar cotización: ' + error.message, 'error');
             }
         }
 
@@ -601,16 +721,27 @@ document.addEventListener('DOMContentLoaded', async () => {
         window.calcularFechaFinal = calcularFechaFinal;
         window.guardarCotizacion = guardarCotizacion;
 
+        // Inicializar la interfaz para el token
+        inicializarTokenUI();
+
         // Inicializar la cotización al cargar
         await actualizarConsecutivo();
         inicializarListenersEditables();
         calcularCotizacion();
     } catch (error) {
         console.error('Error crítico al inicializar cotizacion.js:', error);
-        showToast('Error al cargar la cotización: ' + error.message);
+        showToast('Error al cargar la cotización: ' + error.message, 'error');
     } finally {
         window.cotizacionLoaded = true;
     }
+
+    // Temporizador de seguridad para establecer window.cotizacionLoaded después de 5 segundos
+    setTimeout(() => {
+        if (!window.cotizacionLoaded) {
+            console.warn('Inicialización de cotizacion.js excedió el tiempo límite. Estableciendo window.cotizacionLoaded a true.');
+            window.cotizacionLoaded = true;
+        }
+    }, 5000);
 });
 
 function formatCurrency(amount, currency = 'COP') {
@@ -618,4 +749,11 @@ function formatCurrency(amount, currency = 'COP') {
         style: 'currency',
         currency: currency
     }).format(amount);
+}
+
+function descargarPDFCotizacion(consecutivo, pdfContent) {
+    const link = document.createElement('a');
+    link.href = `data:application/pdf;base64,${pdfContent}`;
+    link.download = `cotizacion_${consecutivo}.pdf`;
+    link.click();
 }
