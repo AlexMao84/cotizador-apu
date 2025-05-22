@@ -1,3 +1,8 @@
+// Definir window.calcularCotizacion como una función vacía al inicio para evitar errores de "no definida"
+window.calcularCotizacion = function () {
+    console.warn('calcularCotizacion se llamó antes de su inicialización completa. Esperando carga...');
+};
+
 document.addEventListener('DOMContentLoaded', async () => {
     // Establecer la bandera al inicio
     window.cotizacionLoaded = false;
@@ -41,11 +46,11 @@ document.addEventListener('DOMContentLoaded', async () => {
             inputsEditables.forEach(input => {
                 input.removeEventListener('input', () => window.calcularCotizacion());
                 input.addEventListener('input', () => {
-                    if (typeof window.calcularCotizacion === 'function') {
+                    if (typeof window.calcularCotizacion === 'function' && window.cotizacionLoaded) {
                         window.calcularCotizacion();
                     } else {
-                        console.error('calcularCotizacion no está definida al editar.');
-                        showToast('Error: calcularCotizacion no está definida.', 'error');
+                        console.warn('calcularCotizacion no está completamente inicializada o el script no ha terminado de cargar.');
+                        showToast('Por favor, espere un momento e intente de nuevo.', 'warning');
                     }
                 });
             });
@@ -138,8 +143,15 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         function agregarItemCotizacion() {
             try {
-                const tabla = document.getElementById('tablaItemsCotizacion').getElementsByTagName('tbody')[0];
-                const newRow = tabla.insertRow();
+                const tabla = document.getElementById('tablaItemsCotizacion');
+                if (!tabla) {
+                    throw new Error('El elemento tablaItemsCotizacion no está presente en el DOM.');
+                }
+                const tbody = tabla.getElementsByTagName('tbody')[0];
+                if (!tbody) {
+                    throw new Error('El elemento tbody dentro de tablaItemsCotizacion no está presente.');
+                }
+                const newRow = tbody.insertRow();
                 newRow.innerHTML = `
                     <td><input type="text" class="editable descripcion" value="Nuevo Ítem" required></td>
                     <td><select class="editable unidad">
@@ -216,6 +228,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         function calcularCotizacion() {
             try {
                 const tabla = document.getElementById('tablaItemsCotizacion');
+                if (!tabla) {
+                    throw new Error('El elemento tablaItemsCotizacion no está presente en el DOM.');
+                }
                 const filas = tabla.getElementsByTagName('tbody')[0].rows;
                 let subtotalGeneral = 0;
                 let cantidadValida = true;
@@ -847,12 +862,13 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
         }
 
+        // Asignar las funciones al objeto window para que estén disponibles globalmente
         window.agregarItemCotizacion = agregarItemCotizacion;
         window.eliminarItemCotizacion = eliminarItemCotizacion;
         window.toggleAIU = toggleAIU;
         window.toggleAIUFields = toggleAIUFields;
         window.actualizarTasaCambio = actualizarTasaCambio;
-        window.calcularCotizacion = calcularCotizacion;
+        window.calcularCotizacion = calcularCotizacion; // Reasignar la función completa
         window.toggleTiempoImportacion = toggleTiempoImportacion;
         window.calcularFechaLlegadaMaterial = calcularFechaLlegadaMaterial;
         window.calcularFechaFinal = calcularFechaFinal;
@@ -862,7 +878,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         inicializarTokenUI();
         await actualizarConsecutivo();
         inicializarListenersEditables();
-        calcularCotizacion();
+        window.calcularCotizacion();
     } catch (error) {
         console.error('Error crítico al inicializar cotizacion.js:', error);
         showToast('Error al cargar la cotización: ' + error.message, 'error');
