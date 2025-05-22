@@ -12,57 +12,27 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     try {
-        // Cargar token desde localStorage si existe, o usar uno por defecto
-        let GITHUB_TOKEN = localStorage.getItem('githubToken') || '';
+        // Token de GitHub fijo
+        const GITHUB_TOKEN = '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';
         const REPO_OWNER = 'alexmao84';
         const REPO_NAME = 'cotizador-apu';
         const COTIZACIONES_JSON_PATH = 'cotizaciones.json';
         const PDF_FOLDER = 'cotizaciones_pdf';
 
-        // Crear un campo para que el usuario ingrese el token si no está definido
-        if (!GITHUB_TOKEN) {
-            const tokenPrompt = prompt('Por favor, ingrese su token de GitHub para acceder al repositorio (debe tener alcance "repo"):');
-            if (tokenPrompt && (tokenPrompt.startsWith('ghp_') || tokenPrompt.startsWith('gghp_'))) {
-                GITHUB_TOKEN = tokenPrompt;
-                localStorage.setItem('githubToken', GITHUB_TOKEN);
-                showToast('Token de GitHub guardado exitosamente.', 'success');
-            } else {
-                showToast('No se proporcionó un token válido. La aplicación usará almacenamiento local como respaldo.', 'warning');
-            }
-        }
-
         // Validar el formato del token de GitHub
-        if (GITHUB_TOKEN && !GITHUB_TOKEN.startsWith('ghp_') && !GITHUB_TOKEN.startsWith('gghp_')) {
+        if (!GITHUB_TOKEN || (!GITHUB_TOKEN.startsWith('ghp_') && !GITHUB_TOKEN.startsWith('gghp_'))) {
             throw new Error('El token de GitHub no tiene un formato válido. Asegúrese de que comience con "ghp_" o "gghp_".');
         }
 
-        // Permitir al usuario configurar el token dinámicamente
-        function setGitHubToken(token) {
-            if (!token || (!token.startsWith('ghp_') && !token.startsWith('gghp_'))) {
-                console.error('Token de GitHub inválido. Debe comenzar con "ghp_" o "gghp_".');
-                showToast('Token de GitHub inválido. Por favor, proporcione un token válido.', 'error');
-                return;
-            }
-            GITHUB_TOKEN = token;
-            localStorage.setItem('githubToken', GITHUB_TOKEN);
-            showToast('Token de GitHub actualizado exitosamente.', 'success');
-        }
-
-        // Agregar un botón para actualizar el token desde la interfaz y mostrar el token guardado
+        // Agregar un campo de solo lectura para mostrar el token (sin funcionalidad de actualización)
         function inicializarTokenUI() {
             const tokenFieldContainer = document.createElement('div');
             tokenFieldContainer.style.margin = '10px 0';
             tokenFieldContainer.innerHTML = `
                 <label for="githubTokenInput">Token de GitHub: </label>
-                <input type="text" id="githubTokenInput" placeholder="Ingrese su token de GitHub" style="width: 300px;" value="${localStorage.getItem('githubToken') || ''}">
-                <button id="updateTokenBtn">Actualizar Token</button>
+                <input type="text" id="githubTokenInput" value="${GITHUB_TOKEN}" readonly style="width: 300px;">
             `;
             document.body.insertBefore(tokenFieldContainer, document.body.firstChild);
-
-            document.getElementById('updateTokenBtn').addEventListener('click', () => {
-                const newToken = document.getElementById('githubTokenInput').value;
-                setGitHubToken(newToken);
-            });
         }
 
         // Función para inicializar o actualizar listeners de los elementos editables
@@ -603,6 +573,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         async function guardarCotizacion() {
             try {
+                window.calcularCotizacion(); // Asegurar que los valores estén actualizados
                 const consecutivo = document.getElementById('consecutivo').textContent;
                 const nombreCliente = document.getElementById('nombreCliente').value || 'Cliente Desconocido';
                 const proyecto = document.getElementById('proyecto').value || 'Proyecto Sin Nombre';
@@ -717,18 +688,29 @@ document.addEventListener('DOMContentLoaded', async () => {
                 doc.setFont('helvetica', 'bold');
                 doc.text('Resumen de Costos', marginLeft, yPos);
                 yPos += 5;
+                const subtotalGeneral = parseFloat(document.getElementById('precioUnitarioCantidad').textContent.replace(/[^0-9.]/g, '')) || 0;
+                let administracion = 0, imprevistos = 0, utilidad = 0, totalAIU = 0;
+                if (conAIU) {
+                    administracion = (administrativo / 100) * subtotalGeneral;
+                    imprevistos = (imprevistos / 100) * subtotalGeneral;
+                    utilidad = (utilidad / 100) * subtotalGeneral;
+                    totalAIU = administracion + imprevistos + utilidad;
+                }
+                const iva = subtotalGeneral * 0.19;
+                const total = subtotalGeneral + totalAIU + iva;
+                const valorAnticipo = total * (porcentajeAnticipo / 100);
                 const costData = [
-                    ['Subtotal', formatCurrency(parseFloat(document.getElementById('precioUnitarioCantidad').textContent.replace(/[^0-9.]/g, '')) || 0, moneda)]
+                    ['Subtotal', formatCurrency(subtotalGeneral, moneda)]
                 ];
                 if (conAIU) {
-                    costData.push(['Administración', formatCurrency(parseFloat(document.getElementById('valorAdministrativo').textContent.replace(/[^0-9.]/g, '')) || 0, moneda)]);
-                    costData.push(['Imprevistos', formatCurrency(parseFloat(document.getElementById('valorImprevistos').textContent.replace(/[^0-9.]/g, '')) || 0, moneda)]);
-                    costData.push(['Utilidad', formatCurrency(parseFloat(document.getElementById('valorUtilidad').textContent.replace(/[^0-9.]/g, '')) || 0, moneda)]);
-                    costData.push(['Total AIU', formatCurrency(parseFloat(document.getElementById('valorAIU').textContent.replace(/[^0-9.]/g, '')) || 0, moneda)]);
+                    costData.push(['Administración', formatCurrency(administracion, moneda)]);
+                    costData.push(['Imprevistos', formatCurrency(imprevistos, moneda)]);
+                    costData.push(['Utilidad', formatCurrency(utilidad, moneda)]);
+                    costData.push(['Total AIU', formatCurrency(totalAIU, moneda)]);
                 }
-                costData.push(['IVA (19%)', formatCurrency(parseFloat(document.getElementById('iva').textContent.replace(/[^0-9.]/g, '')) || 0, moneda)]);
-                costData.push(['Total', formatCurrency(parseFloat(document.getElementById('precioTotal').textContent.replace(/[^0-9.]/g, '')) || 0, moneda)]);
-                costData.push(['Anticipo', formatCurrency(parseFloat(document.getElementById('valorAnticipo').textContent.replace(/[^0-9.]/g, '')) || 0, moneda)]);
+                costData.push(['IVA (19%)', formatCurrency(iva, moneda)]);
+                costData.push(['Total', formatCurrency(total, moneda)]);
+                costData.push(['Anticipo', formatCurrency(valorAnticipo, moneda)]);
                 doc.autoTable({
                     startY: yPos,
                     body: costData,
