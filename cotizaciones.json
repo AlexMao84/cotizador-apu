@@ -1,10 +1,1 @@
-[
-    {
-        "consecutivo": "SEL25040001",
-        "nombreCliente": "Cliente 1",
-        "proyecto": "Proyecto 1",
-        "pdfPath": "cotizaciones_pdf/cotizacion_SEL25040001.pdf",
-        ...
-    },
-    ...
-]
+[{"consecutivo":"SEL25040004","nombreCliente":"AYC","proyecto":"VAXTHERA 1","descripcion":"","moneda":"COP","tasaCambio":1,"conAIU":true,"administrativo":10,"imprevistos":10,"utilidad":10,"formaPago":"Transferencia Bancaria","porcentajeAnticipo":50,"fechaAnticipo":"2025-05-01","importacion":"Sí","tiempoImportacion":50,"fechaLlegadaMaterial":"2025-06-20","tiempoPlaneacion":2,"tiempoFabricacionDespacho":2,"tiempoInstalacion":5,"fechaFinal":"2025-12-15","items":[{"descripcion":"APU Calculado","unidad":"UND","cantidad":1560,"precioUnitario":1299200,"subtotal":2026752000},{"descripcion":"Nuevo Ítem","unidad":"UND","cantidad":1,"precioUnitario":0,"subtotal":0}],"pdfPath":"cotizaciones_pdf/SEL25040004.pdf","fechaCreacion":"2025-05-22"}]
