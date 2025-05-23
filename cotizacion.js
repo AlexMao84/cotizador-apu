@@ -844,7 +844,7 @@ function inicializarListenersEditables() {
                 window.calcularCotizacion();
             } else {
                 console.warn('Esperando inicialización completa de cotizacion.js antes de calcular.');
-                showToast('Por favor, espere un momento e intente de nuevo.', 'warning');
+                showToast('Cotización aún cargando. Por favor, espere un momento e intente de nuevo.', 'warning');
             }
         });
     });
@@ -898,9 +898,14 @@ document.addEventListener('DOMContentLoaded', async () => {
         window.generarPDFCotizacion = generarPDFCotizacion;
 
         inicializarTokenUI();
-        await actualizarConsecutivo();
         inicializarListenersEditables();
         window.calcularCotizacion();
+
+        // Ejecutar operaciones asíncronas en segundo plano
+        await actualizarConsecutivo().catch(error => {
+            console.error('Error al actualizar consecutivo en segundo plano:', error);
+            showToast('No se pudo actualizar el consecutivo automáticamente. Usando valor local.', 'warning');
+        });
     } catch (error) {
         console.error('Error crítico al inicializar cotizacion.js:', error);
         showToast('Error al cargar la cotización: ' + error.message, 'error');
@@ -913,5 +918,5 @@ document.addEventListener('DOMContentLoaded', async () => {
             console.warn('Inicialización de cotizacion.js excedió el tiempo límite. Estableciendo window.cotizacionFullyLoaded a true.');
             window.cotizacionFullyLoaded = true;
         }
-    }, 5000);
+    }, 10000); // Aumentar a 10 segundos para dar más tiempo a las operaciones asíncronas
 });
