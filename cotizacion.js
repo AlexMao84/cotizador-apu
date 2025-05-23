@@ -481,12 +481,12 @@ async function generarPDFCotizacion(consecutivo) {
         doc.text('Resumen de Costos', marginLeft, yPos);
         yPos += 5;
         let subtotalGeneral = cotizacion.items.reduce((sum, item) => sum + item.subtotal, 0);
-        let administracion = 0, imprevistos = 0, utilidad = 0, totalAIU = 0;
+        let administracion = 0, valorImprevistos = 0, utilidad = 0, totalAIU = 0;
         if (cotizacion.conAIU) {
             administracion = (cotizacion.administrativo / 100) * subtotalGeneral;
-            imprevistos = (cotizacion.imprevistos / 100) * subtotalGeneral;
+            valorImprevistos = (cotizacion.imprevistos / 100) * subtotalGeneral;
             utilidad = (cotizacion.utilidad / 100) * subtotalGeneral;
-            totalAIU = administracion + imprevistos + utilidad;
+            totalAIU = administracion + valorImprevistos + utilidad;
         }
         const iva = subtotalGeneral * 0.19;
         const total = subtotalGeneral + totalAIU + iva;
@@ -496,7 +496,7 @@ async function generarPDFCotizacion(consecutivo) {
         ];
         if (cotizacion.conAIU) {
             costData.push(['Administración', formatCurrency(administracion, cotizacion.moneda)]);
-            costData.push(['Imprevistos', formatCurrency(imprevistos, cotizacion.moneda)]);
+            costData.push(['Imprevistos', formatCurrency(valorImprevistos, cotizacion.moneda)]);
             costData.push(['Utilidad', formatCurrency(utilidad, cotizacion.moneda)]);
             costData.push(['Total AIU', formatCurrency(totalAIU, cotizacion.moneda)]);
         }
@@ -666,12 +666,12 @@ async function guardarCotizacion() {
         doc.text('Resumen de Costos', marginLeft, yPos);
         yPos += 5;
         const subtotalGeneral = parseFloat(document.getElementById('precioUnitarioCantidad').textContent.replace(/[^0-9.]/g, '')) || 0;
-        let administracion = 0, imprevistos = 0, utilidad = 0, totalAIU = 0;
+        let administracion = 0, valorImprevistos = 0, valorUtilidad = 0, totalAIU = 0;
         if (conAIU) {
             administracion = (administrativo / 100) * subtotalGeneral;
-            imprevistos = (imprevistos / 100) * subtotalGeneral;
-            utilidad = (utilidad / 100) * subtotalGeneral;
-            totalAIU = administracion + imprevistos + utilidad;
+            valorImprevistos = (imprevistos / 100) * subtotalGeneral;
+            valorUtilidad = (utilidad / 100) * subtotalGeneral;
+            totalAIU = administracion + valorImprevistos + valorUtilidad;
         }
         const iva = subtotalGeneral * 0.19;
         const total = subtotalGeneral + totalAIU + iva;
@@ -681,8 +681,8 @@ async function guardarCotizacion() {
         ];
         if (conAIU) {
             costData.push(['Administración', formatCurrency(administracion, moneda)]);
-            costData.push(['Imprevistos', formatCurrency(imprevistos, moneda)]);
-            costData.push(['Utilidad', formatCurrency(utilidad, moneda)]);
+            costData.push(['Imprevistos', formatCurrency(valorImprevistos, moneda)]);
+            costData.push(['Utilidad', formatCurrency(valorUtilidad, moneda)]);
             costData.push(['Total AIU', formatCurrency(totalAIU, moneda)]);
         }
         costData.push(['IVA (19%)', formatCurrency(iva, moneda)]);
@@ -918,5 +918,5 @@ document.addEventListener('DOMContentLoaded', async () => {
             console.warn('Inicialización de cotizacion.js excedió el tiempo límite. Estableciendo window.cotizacionFullyLoaded a true.');
             window.cotizacionFullyLoaded = true;
         }
-    }, 10000); // Aumentar a 10 segundos para dar más tiempo a las operaciones asíncronas
+    }, 5000);
 });
