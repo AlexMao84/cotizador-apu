@@ -12,7 +12,7 @@ window.guardarCotizacion = function () { console.warn('guardarCotizacion se llam
 window.generarPDFCotizacion = function () { console.warn('generarPDFCotizacion se llamó antes de su inicialización completa.'); };
 
 // Definir las constantes y funciones que no dependen del DOM fuera de DOMContentLoaded
-const GITHUB_TOKEN = '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';
+const GITHUB_TOKEN = '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';
 const REPO_OWNER = 'alexmao84';
 const REPO_NAME = 'cotizador-apu';
 const COTIZACIONES_JSON_PATH = 'cotizaciones.json';
