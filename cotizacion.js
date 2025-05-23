@@ -12,7 +12,7 @@ window.guardarCotizacion = function () { console.warn('guardarCotizacion se llam
 window.generarPDFCotizacion = function () { console.warn('generarPDFCotizacion se llamó antes de su inicialización completa.'); };
 
 // Definir las constantes y funciones que no dependen del DOM fuera de DOMContentLoaded
-const GITHUB_TOKEN = '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';
+const GITHUB_TOKEN = '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'; // Reemplace este valor con el nuevo token de GitHub generado
 const REPO_OWNER = 'alexmao84';
 const REPO_NAME = 'cotizador-apu';
 const COTIZACIONES_JSON_PATH = 'cotizaciones.json';
@@ -85,21 +85,21 @@ async function saveFileToGitHub(path, content, message, sha = null) {
         });
         if (response.status === 401) {
             showToast('Credenciales inválidas al guardar en GitHub. Por favor, actualice el token.', 'error');
-            throw new Error('Credenciales inválidas.');
+            return false; // Indicar fallo para usar almacenamiento local
         }
         if (response.status === 403) {
             showToast('Límite de la API de GitHub alcanzado o acceso denegado al repositorio. Verifique los permisos del token.', 'error');
-            throw new Error('Acceso denegado o límite de API alcanzado.');
+            return false;
         }
         if (!response.ok) {
             const errorData = await response.json();
             throw new Error(`Código ${response.status}: ${response.statusText} - ${errorData.message || 'Sin detalles'}`);
         }
-        return await response.json();
+        return true;
     } catch (error) {
         console.error('Error al guardar en GitHub:', error);
         showToast(`Error al guardar en GitHub: ${error.message}`, 'warning');
-        throw error;
+        return false;
     }
 }
 
@@ -745,13 +745,7 @@ async function guardarCotizacion() {
             console.error('Error al verificar PDF existente en GitHub:', error);
         }
 
-        let gitHubSuccess = true;
-        try {
-            await saveFileToGitHub(pdfPath, pdfContent, `Subir PDF para cotización ${consecutivo}`, pdfSha);
-        } catch (error) {
-            gitHubSuccess = false;
-            showToast('No se pudo guardar el PDF en GitHub. Guardando localmente como respaldo.', 'warning');
-        }
+        let gitHubSuccess = await saveFileToGitHub(pdfPath, pdfContent, `Subir PDF para cotización ${consecutivo}`, pdfSha);
 
         const { content: jsonContent, sha: jsonSha } = await fetchCotizacionesFromGitHub();
         let cotizaciones = [];
@@ -800,12 +794,7 @@ async function guardarCotizacion() {
         }
 
         if (gitHubSuccess) {
-            try {
-                await saveFileToGitHub(COTIZACIONES_JSON_PATH, btoa(jsonString), `Actualizar cotizaciones con ${consecutivo}`, jsonSha);
-            } catch (error) {
-                gitHubSuccess = false;
-                showToast('No se pudo guardar la cotización en GitHub. Guardando localmente como respaldo.', 'warning');
-            }
+            gitHubSuccess = await saveFileToGitHub(COTIZACIONES_JSON_PATH, btoa(jsonString), `Actualizar cotizaciones con ${consecutivo}`, jsonSha);
         }
 
         if (!gitHubSuccess) {
@@ -813,6 +802,7 @@ async function guardarCotizacion() {
             localCotizaciones.push(nuevaCotizacion);
             localStorage.setItem('cotizaciones', JSON.stringify(localCotizaciones));
             localStorage.setItem(`pdf_${consecutivo}`, pdfContent);
+            showToast('No se pudo guardar en GitHub. Guardado localmente como respaldo.', 'warning');
         }
 
         showToast('Cotización guardada exitosamente.', 'success');
