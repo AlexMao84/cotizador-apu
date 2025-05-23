@@ -184,72 +184,91 @@ function eliminarFila(button, categoria) {
     }
 }
 
+// Variable global para almacenar los resultados del APU
+window.resultadosAPU = [];
+
+// Función para calcular el APU (ejemplo simplificado)
 function calcularAPU() {
     try {
-        const margen = parseFloat(document.getElementById('margen_contributivo').value) || 0;
-        if (margen < 0 || margen > 99) {
-            document.getElementById('margenError').classList.add('active');
-            document.getElementById('margenError').textContent = 'El margen debe estar entre 0 y 99.';
-            return;
+        // Ejemplo: Obtener datos del formulario de APU
+        const descripcionAPU = document.getElementById('descripcionAPU')?.value || 'Ítem APU';
+        const unidadAPU = document.getElementById('unidadAPU')?.value || 'UND';
+        const cantidadAPU = parseFloat(document.getElementById('cantidadAPU')?.value) || 1;
+        const precioUnitarioAPU = parseFloat(document.getElementById('precioUnitarioAPU')?.value) || 0;
+
+        // Validar datos
+        if (!descripcionAPU || isNaN(cantidadAPU) || isNaN(precioUnitarioAPU)) {
+            throw new Error('Datos del APU incompletos o inválidos.');
         }
-        document.getElementById('margenError').classList.remove('active');
 
-        let totalGeneral = 0;
-        const resultados = categorias.reduce((acc, categoria) => {
-            let totalCategoria = 0;
-            const tabla = document.getElementById(`tabla${categoria}`);
-            const filas = tabla.getElementsByTagName('tbody')[0].rows;
-            for (let fila of filas) {
-                const cantidad = parseFloat(fila.querySelector(`.cantidad${categoria}`).value) || 0;
-                const precio = parseFloat(fila.querySelector(`.precioUnitario${categoria}`).value) || 0;
-                const subtotal = cantidad * precio;
-                fila.querySelector(`.subtotal${categoria}`).textContent = formatCurrency(subtotal);
-                totalCategoria += subtotal;
-            }
-            totalGeneral += totalCategoria;
-            acc[categoria] = totalCategoria;
-            document.getElementById(`total${categoria}`).textContent = formatCurrency(totalCategoria);
-            document.getElementById(`porcentaje${categoria}`).textContent = totalGeneral > 0 ? ((totalCategoria / totalGeneral) * 100).toFixed(2) + '%' : '0%';
-            return acc;
-        }, {});
+        // Almacenar los resultados en la variable global
+        window.resultadosAPU = [{
+            descripcion: descripcionAPU,
+            unidad: unidadAPU,
+            cantidad: cantidadAPU,
+            precioUnitario: precioUnitarioAPU
+        }];
 
-        const precioUnitario = totalGeneral * (1 + margen / 100);
-        document.getElementById('resultado').textContent = formatCurrency(precioUnitario);
-        localStorage.setItem('apuResultados', JSON.stringify({ totales: resultados, precioUnitario }));
+        // Actualizar el DOM (tablaResultadosAPU)
+        const tabla = document.getElementById('tablaResultadosAPU');
+        if (!tabla) {
+            throw new Error('No se encontró la tabla de resultados de APU en el DOM.');
+        }
+        const tbody = tabla.getElementsByTagName('tbody')[0];
+        tbody.innerHTML = ''; // Limpiar la tabla
+        window.resultadosAPU.forEach(item => {
+            const row = tbody.insertRow();
+            row.innerHTML = `
+                <td>${item.descripcion}</td>
+                <td>${item.unidad}</td>
+                <td>${item.cantidad}</td>
+                <td>${item.precioUnitario}</td>
+            `;
+        });
+
+        showToast('APU calculado exitosamente.', 'success');
     } catch (error) {
         console.error('Error al calcular APU:', error);
-        showToast('Error al calcular APU: ' + error.message);
+        showToast('Error al calcular APU: ' + error.message, 'error');
+        window.resultadosAPU = []; // Limpiar en caso de error
     }
 }
 
 function usarEnCotizacion() {
     try {
-        // Verificar si hay resultados de APU disponibles
-        const resultadosAPU = document.getElementById('tablaResultadosAPU')?.getElementsByTagName('tbody')[0]?.rows;
-        if (!resultadosAPU || resultadosAPU.length === 0) {
-            throw new Error('No hay resultados de APU disponibles. Por favor, realice un cálculo de APU primero.');
-        }
-
         // Verificar si cotizacion.js está completamente inicializado
         if (!window.cotizacionFullyLoaded) {
             throw new Error('El módulo de cotización aún no está listo. Por favor, espere un momento.');
         }
 
-        // Extraer datos de APU y usarlos en la cotización
-        const itemsAPU = Array.from(resultadosAPU).map(row => {
-            const descripcion = row.cells[0]?.textContent || 'Ítem APU';
-            const unidad = row.cells[1]?.textContent || 'UND';
-            const cantidad = parseFloat(row.cells[2]?.textContent) || 1;
-            const precioUnitario = parseFloat(row.cells[3]?.textContent) || 0;
-            return { descripcion, unidad, cantidad, precioUnitario };
-        });
+        // Verificar si hay resultados de APU disponibles (usar la variable global)
+        if (!window.resultadosAPU || window.resultadosAPU.length === 0) {
+            // Verificar también el DOM como respaldo
+            const resultadosDOM = document.getElementById('tablaResultadosAPU')?.getElementsByTagName('tbody')[0]?.rows;
+            if (!resultadosDOM || resultadosDOM.length === 0) {
+                throw new Error('No hay resultados de APU disponibles. Por favor, realice un cálculo de APU primero.');
+            }
+            // Si el DOM tiene datos, reconstruir resultadosAPU
+            window.resultadosAPU = Array.from(resultadosDOM).map(row => ({
+                descripcion: row.cells[0]?.textContent || 'Ítem APU',
+                unidad: row.cells[1]?.textContent || 'UND',
+                cantidad: parseFloat(row.cells[2]?.textContent) || 1,
+                precioUnitario: parseFloat(row.cells[3]?.textContent) || 0
+            }));
+        }
+
+        // Depuración: Mostrar los datos del APU
+        console.log('Resultados del APU a usar:', window.resultadosAPU);
 
         // Limpiar la tabla de ítems de cotización actual
         const tablaCotizacion = document.getElementById('tablaItemsCotizacion').getElementsByTagName('tbody')[0];
+        if (!tablaCotizacion) {
+            throw new Error('No se encontró la tabla de ítems de cotización en el DOM.');
+        }
         tablaCotizacion.innerHTML = '';
 
         // Agregar los ítems de APU a la cotización
-        itemsAPU.forEach(item => {
+        window.resultadosAPU.forEach(item => {
             const newRow = tablaCotizacion.insertRow();
             newRow.innerHTML = `
                 <td><input type="text" class="editable descripcion" value="${item.descripcion}" required></td>
@@ -268,8 +287,9 @@ function usarEnCotizacion() {
         // Recalcular la cotización
         inicializarListenersEditables();
         window.calcularCotizacion();
+        showToast('APU transferido a la cotización exitosamente.', 'success');
     } catch (error) {
-        console.error('Error al usar en cotización:', error);
+        console.error('Error al usar APU en cotización:', error);
         showToast('Error al usar APU en cotización: ' + error.message, 'error');
     }
 }
