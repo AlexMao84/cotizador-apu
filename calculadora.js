@@ -224,45 +224,53 @@ function calcularAPU() {
 
 function usarEnCotizacion() {
     try {
-        const apuResultados = JSON.parse(localStorage.getItem('apuResultados') || '{}');
-        if (!apuResultados.precioUnitario) throw new Error('No hay resultados de APU disponibles.');
-        const tabla = document.getElementById('tablaItemsCotizacion').getElementsByTagName('tbody')[0];
-        const newRow = tabla.insertRow();
-        newRow.innerHTML = `
-            <td><input type="text" class="editable descripcion" value="APU Calculado" required></td>
-            <td><select class="editable unidad">
-                <option value="UND">UND</option>
-                <option value="M2">M2</option>
-                <option value="ML">ML</option>
-            </select></td>
-            <td><input type="number" class="editable cantidad" value="1" min="0" step="0.01" required></td>
-            <td><input type="number" class="editable precioUnitario" value="${apuResultados.precioUnitario.toFixed(2)}" min="0" step="0.01" required></td>
-            <td class="subtotal"></td>
-            <td><button class="delete-btn" onclick="eliminarItemCotizacion(this)" title="Eliminar ítem"><i class="fas fa-trash"></i></button></td>
-        `;
-        newRow.querySelectorAll('.editable').forEach(input => input.addEventListener('input', () => {
-            if (typeof window.calcularCotizacion === 'function') {
-                window.calcularCotizacion();
-            } else {
-                showToast('Error: calcularCotizacion no está definida. Por favor, espere un momento e intente de nuevo.');
-            }
-        }));
-        if (typeof window.calcularCotizacion === 'function' && window.cotizacionLoaded) {
-            window.calcularCotizacion();
-        } else {
-            showToast('Cotización aún cargando. Por favor, espere un momento e intente de nuevo.');
-            const waitForCotizacion = setInterval(() => {
-                if (window.cotizacionLoaded && typeof window.calcularCotizacion === 'function') {
-                    clearInterval(waitForCotizacion);
-                    window.calcularCotizacion();
-                }
-            }, 500);
+        // Verificar si hay resultados de APU disponibles
+        const resultadosAPU = document.getElementById('tablaResultadosAPU')?.getElementsByTagName('tbody')[0]?.rows;
+        if (!resultadosAPU || resultadosAPU.length === 0) {
+            throw new Error('No hay resultados de APU disponibles. Por favor, realice un cálculo de APU primero.');
         }
-        showToast('APU transferido a Cotización exitosamente.', 'success');
-        openTab('cotizacion');
+
+        // Verificar si cotizacion.js está completamente inicializado
+        if (!window.cotizacionFullyLoaded) {
+            throw new Error('El módulo de cotización aún no está listo. Por favor, espere un momento.');
+        }
+
+        // Extraer datos de APU y usarlos en la cotización
+        const itemsAPU = Array.from(resultadosAPU).map(row => {
+            const descripcion = row.cells[0]?.textContent || 'Ítem APU';
+            const unidad = row.cells[1]?.textContent || 'UND';
+            const cantidad = parseFloat(row.cells[2]?.textContent) || 1;
+            const precioUnitario = parseFloat(row.cells[3]?.textContent) || 0;
+            return { descripcion, unidad, cantidad, precioUnitario };
+        });
+
+        // Limpiar la tabla de ítems de cotización actual
+        const tablaCotizacion = document.getElementById('tablaItemsCotizacion').getElementsByTagName('tbody')[0];
+        tablaCotizacion.innerHTML = '';
+
+        // Agregar los ítems de APU a la cotización
+        itemsAPU.forEach(item => {
+            const newRow = tablaCotizacion.insertRow();
+            newRow.innerHTML = `
+                <td><input type="text" class="editable descripcion" value="${item.descripcion}" required></td>
+                <td><select class="editable unidad">
+                    <option value="UND" ${item.unidad === 'UND' ? 'selected' : ''}>UND</option>
+                    <option value="M2" ${item.unidad === 'M2' ? 'selected' : ''}>M2</option>
+                    <option value="ML" ${item.unidad === 'ML' ? 'selected' : ''}>ML</option>
+                </select></td>
+                <td><input type="number" class="editable cantidad" value="${item.cantidad}" min="0" step="0.01" required></td>
+                <td><input type="number" class="editable precioUnitario" value="${item.precioUnitario}" min="0" step="0.01" required></td>
+                <td class="subtotal"></td>
+                <td><button class="delete-btn" onclick="eliminarItemCotizacion(this)" title="Eliminar ítem"><i class="fas fa-trash"></i></button></td>
+            `;
+        });
+
+        // Recalcular la cotización
+        inicializarListenersEditables();
+        window.calcularCotizacion();
     } catch (error) {
         console.error('Error al usar en cotización:', error);
-        showToast('Error al transferir APU a Cotización: ' + error.message);
+        showToast('Error al usar APU en cotización: ' + error.message, 'error');
     }
 }
 function descargarPDFCalculadora() {
